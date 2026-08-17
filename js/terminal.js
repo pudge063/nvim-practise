@@ -257,14 +257,13 @@ export class Terminal {
     clearInterval(this._meltdownInterval);
     this.els.meltdownOverlay?.classList.remove("hidden");
     this._playSound("img/flashbang.mp3");
-    // The picture itself finishes fading in at 2.2s into the overlay
-    // (see .meltdown-overlay img's fx-img-reveal: 0.4s delay + 1.8s
-    // reveal) — land the impact hit right as it lands, after the flash
-    // sound (~2.5s) has mostly played out.
-    setTimeout(() => this._playSound("img/pum-impacto.mp3"), 2200);
-    // 2.2s until impact + ~3.2s for that sound to finish + a beat to
+    // The picture itself is essentially fully visible by ~0.3s (see
+    // .meltdown-overlay img's fx-img-reveal) — the impact hit lands
+    // right there, not after the flash sound has mostly finished.
+    setTimeout(() => this._playSound("img/pum-impacto.mp3"), 150);
+    // 0.15s until impact + ~3.2s for that sound to finish + a beat to
     // actually look at the picture before reload.
-    setTimeout(() => window.location.reload(), 6500);
+    setTimeout(() => window.location.reload(), 4200);
   }
 
   // ---------- vim ----------

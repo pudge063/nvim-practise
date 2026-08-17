@@ -42,6 +42,18 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  /* This reads as an app/game, not a document — no drag-to-select
+     smears across the terminal/task tiles. Inputs opt back in below so
+     typing/selecting what you typed still works normally. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* ---------- animated background ---------- */
@@ -886,9 +898,9 @@ body {
 }
 
 .promo-title {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.95rem;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.82);
   letter-spacing: -0.01em;
 }
 
@@ -921,7 +933,9 @@ body {
   min-width: 0;
   font-family: var(--mono);
   font-size: 0.74rem;
-  color: #e8eaf2;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.01em;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -945,15 +959,16 @@ body {
   border-radius: var(--radius-md);
   background: #0a0a0a;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: rgba(255, 255, 255, 0.8);
   font-family: var(--sans);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.82rem;
   text-decoration: none;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease, color 0.15s ease;
 }
 
 .promo-repo-btn:hover {
+  color: #fff;
   border-color: rgba(255, 255, 255, 0.4);
   background: #131313;
   transform: translateY(-1px);
@@ -1141,7 +1156,7 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: 0 0 120px rgba(251, 113, 133, 0.55);
   opacity: 0;
-  animation: fx-shake 0.4s infinite, fx-img-reveal 1.8s ease-out 0.4s forwards;
+  animation: fx-shake 0.4s infinite, fx-img-reveal 0.3s ease-out forwards;
 }
 
 @keyframes fx-flashbang {
