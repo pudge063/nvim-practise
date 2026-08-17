@@ -240,22 +240,31 @@ export class Terminal {
     setTimeout(() => this._showMeltdownImage(), 1000);
   }
 
+  _playSound(src) {
+    // Best-effort: browsers that block unprompted audio (rare, given the
+    // user already typed a command to get here) just get it silent —
+    // never let this throw and skip the reload below.
+    try {
+      new Audio(src).play().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
   _showMeltdownImage() {
     if (this._meltdownImageShown) return;
     this._meltdownImageShown = true;
     clearInterval(this._meltdownInterval);
     this.els.meltdownOverlay?.classList.remove("hidden");
-    // Best-effort: browsers that block unprompted audio (rare, given the
-    // user already typed a command to get here) just get the silent
-    // flash — never let this throw and skip the reload below.
-    try {
-      new Audio("img/flashbang.mp3").play().catch(() => {});
-    } catch {
-      /* ignore */
-    }
-    // ~2.5s flash/sound (matches the CSS animation + flashbang.mp3's own
-    // length) plus a beat to actually look at the picture before reload.
-    setTimeout(() => window.location.reload(), 4000);
+    this._playSound("img/flashbang.mp3");
+    // The picture itself finishes fading in at 2.2s into the overlay
+    // (see .meltdown-overlay img's fx-img-reveal: 0.4s delay + 1.8s
+    // reveal) — land the impact hit right as it lands, after the flash
+    // sound (~2.5s) has mostly played out.
+    setTimeout(() => this._playSound("img/pum-impacto.mp3"), 2200);
+    // 2.2s until impact + ~3.2s for that sound to finish + a beat to
+    // actually look at the picture before reload.
+    setTimeout(() => window.location.reload(), 6500);
   }
 
   // ---------- vim ----------

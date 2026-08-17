@@ -112,20 +112,25 @@
         </p>
       </div>
     </aside>
-
-    <section class="promo-pane">
-      <div class="promo-title">PivLab Vim Config</div>
-      <button id="promo-install-line" class="promo-install-line" type="button" title="Скопировать команду установки">
-        <code id="promo-install-cmd"
-          >curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash</code
-        >
-        <span id="promo-copy-icon" class="promo-copy-icon">⧉</span>
-      </button>
-      <a class="promo-repo-btn" href="https://gl.pivlab.dev/rnd/nvim-config" target="_blank" rel="noopener noreferrer">
-        Source Code ↗
-      </a>
-    </section>
   </main>
+
+  <!-- Deliberately OUTSIDE <main class="workspace"> — a plain block-level
+       element below the whole two-column layout, not a flex participant
+       in it. Living inside .workspace's flex-wrap made it prone to
+       rendering beside the columns rather than under them depending on
+       viewport width; this way there's no flex layout ambiguity at all. -->
+  <section class="promo-pane">
+    <div class="promo-title">PivLab Vim Config</div>
+    <button id="promo-install-line" class="promo-install-line" type="button" title="Скопировать команду установки">
+      <code id="promo-install-cmd"
+        >curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash</code
+      >
+      <span id="promo-copy-icon" class="promo-copy-icon">⧉</span>
+    </button>
+    <a class="promo-repo-btn" href="https://gl.pivlab.dev/rnd/nvim-config" target="_blank" rel="noopener noreferrer">
+      Source Code ↗
+    </a>
+  </section>
 
   <footer class="site-footer">
     <span>Наберите <code>help</code> в терминале, чтобы увидеть список команд.</span>

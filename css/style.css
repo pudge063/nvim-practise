@@ -868,12 +868,11 @@ body {
 /* ---------- promo card (nvim-config quickstart) — deliberately its own
    black, minimal look, distinct from the rest of the glass UI ---------- */
 .promo-pane {
-  /* its own wide, centered row below the terminal/tasks columns —
-     wider than the terminal column on purpose, not just matching it */
-  flex-basis: 100%;
-  width: 100%;
+  /* Plain block-level element (see index.html) — width/centering here
+     don't interact with .workspace's flex layout at all. */
+  width: calc(100% - 2 * clamp(16px, 4vw, 48px));
   max-width: 820px;
-  margin: 0 auto;
+  margin: 4px auto 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
