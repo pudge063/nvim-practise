@@ -743,6 +743,14 @@ body {
   display: none !important;
 }
 
+.rmrf-warning {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--accent-warn);
+  opacity: 0.75;
+}
+
 /* ---------- basic commands cheat sheet ---------- */
 .cmds-pane {
   display: flex;
@@ -790,6 +798,14 @@ body {
 /* ---------- promo card (nvim-config quickstart) — deliberately its own
    black, minimal look, distinct from the rest of the glass UI ---------- */
 .promo-pane {
+  /* full-width row of its own below the terminal/tasks columns —
+     matches their combined width so the install command never needs
+     its own horizontal scrollbar */
+  flex-basis: 100%;
+  width: 100%;
+  max-width: 1022px;
+  margin: 0 auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 10px;
