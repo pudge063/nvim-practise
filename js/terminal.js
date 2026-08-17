@@ -126,6 +126,9 @@ export class Terminal {
       if (result.action?.type === "vim") {
         this.enterVim(result.action.path);
       }
+      if (result.action?.type === "browse") {
+        this.enterBrowser(result.action.path);
+      }
       if (result.action?.type === "meltdown") {
         this._startMeltdown();
       }
@@ -205,7 +208,7 @@ export class Terminal {
   }
 
   // `rm -rf /` and `sudo` easter egg (see shell.js's looksLikeRmRfRoot /
-  // the sudo branch). `rm -rf /` gets a 2s spray of fake fatal errors
+  // the sudo branch). `rm -rf /` gets a 1s spray of fake fatal errors
   // first (shake + red glow on the terminal pane) before the picture;
   // `sudo` (skipErrors) cuts straight to it. Either way it ends the same:
   // the picture, then an automatic reload — nothing here is meant to be
@@ -234,7 +237,7 @@ export class Terminal {
     this._meltdownInterval = setInterval(() => {
       this._printLine(messages[Math.floor(Math.random() * messages.length)](), "line-error line-meltdown");
     }, 140);
-    setTimeout(() => this._showMeltdownImage(), 2000);
+    setTimeout(() => this._showMeltdownImage(), 1000);
   }
 
   _showMeltdownImage() {
@@ -242,7 +245,17 @@ export class Terminal {
     this._meltdownImageShown = true;
     clearInterval(this._meltdownInterval);
     this.els.meltdownOverlay?.classList.remove("hidden");
-    setTimeout(() => window.location.reload(), 3000);
+    // Best-effort: browsers that block unprompted audio (rare, given the
+    // user already typed a command to get here) just get the silent
+    // flash — never let this throw and skip the reload below.
+    try {
+      new Audio("img/flashbang.mp3").play().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+    // ~2.5s flash/sound (matches the CSS animation + flashbang.mp3's own
+    // length) plus a beat to actually look at the picture before reload.
+    setTimeout(() => window.location.reload(), 4000);
   }
 
   // ---------- vim ----------
@@ -251,6 +264,7 @@ export class Terminal {
   // the cursor somewhere other than the top of the file.
   enterVim(path, opts = {}) {
     this.hideInlineHint();
+    this.browserPath = null;
     const content = this.fs.exists(path) ? this.fs.read(path) : "";
     if (!this.fs.exists(path)) this.fs.touch(path);
     this.vimPath = path;
@@ -273,17 +287,124 @@ export class Terminal {
     this.hideInlineHint();
     this.engine = null;
     this.vimPath = null;
+    this.browserPath = null;
     this.els.vimView.classList.add("hidden");
     this.els.shellView.classList.remove("hidden");
     this._updatePrompt();
     this.els.shellInput.focus();
   }
 
+  // ---------- directory browser (vim/vi with no file — see shell.js's
+  // "browse" action) ----------
+  //
+  // A separate, much smaller mode from the real vim engine on purpose:
+  // this isn't vim editing, it's a way to *pick* a file to then actually
+  // edit — implementing it as a real netrw-equivalent inside vim.js would
+  // expand that engine's scope well past what ADR-0003 deliberately
+  // limits it to. Reuses the vim view's DOM (buffer/statusline) purely
+  // for a consistent look, but talks to `this.fs` directly, no VimEngine
+  // involved.
+
+  enterBrowser(dirPath) {
+    this.hideInlineHint();
+    this.engine = null;
+    this.vimPath = null;
+    this.browserPath = this.fs.normalize(dirPath);
+    this.browserIndex = 0;
+    this.els.shellView.classList.add("hidden");
+    this.els.vimView.classList.remove("hidden");
+    this._renderBrowser();
+    this.els.vimView.focus();
+  }
+
+  _browserEntries() {
+    const entries = this.fs.list(this.browserPath).slice();
+    if (this.browserPath !== "/") entries.unshift({ name: "..", type: "dir" });
+    return entries;
+  }
+
+  _renderBrowser() {
+    const entries = this._browserEntries();
+    if (this.browserIndex >= entries.length) this.browserIndex = entries.length - 1;
+    if (this.browserIndex < 0) this.browserIndex = 0;
+
+    const buf = this.els.vimBuffer;
+    buf.innerHTML = "";
+    entries.forEach((entry, i) => {
+      const lineEl = document.createElement("div");
+      lineEl.className = "vim-line" + (i === this.browserIndex ? " vim-line-active" : "");
+
+      const lnum = document.createElement("span");
+      lnum.className = "vim-lnum";
+      lnum.textContent = i === this.browserIndex ? "→" : "";
+      lineEl.appendChild(lnum);
+
+      const textEl = document.createElement("span");
+      textEl.className = "vim-text" + (entry.type === "dir" ? " browser-dir" : "");
+      textEl.textContent = entry.type === "dir" ? entry.name + "/" : entry.name;
+      lineEl.appendChild(textEl);
+
+      buf.appendChild(lineEl);
+    });
+
+    this.els.windowTitle.textContent = `vim — ${this.fs.displayPath(this.browserPath)}`;
+    this.els.vimModeIndicator.textContent = "BROWSE";
+    this.els.vimFilename.textContent = this.fs.displayPath(this.browserPath);
+    this.els.vimKeycount.textContent = "j/k move · Enter open · - up · q quit";
+    this.els.vimPosition.textContent = `${entries.length} item${entries.length === 1 ? "" : "s"}`;
+    this.els.vimView.className = "vim-view mode-browse";
+    this.els.vimCmdline.classList.add("hidden");
+  }
+
+  _onBrowserKey(key) {
+    const entries = this._browserEntries();
+    if (key === "j" || key === "ArrowDown") {
+      this.browserIndex = Math.min(entries.length - 1, this.browserIndex + 1);
+      this._renderBrowser();
+      return;
+    }
+    if (key === "k" || key === "ArrowUp") {
+      this.browserIndex = Math.max(0, this.browserIndex - 1);
+      this._renderBrowser();
+      return;
+    }
+    if (key === "G") {
+      this.browserIndex = entries.length - 1;
+      this._renderBrowser();
+      return;
+    }
+    if (key === "-" || key === "h" || key === "Backspace") {
+      this.enterBrowser(this.fs.normalize(this.browserPath + "/.."));
+      return;
+    }
+    if (key === "q" || key === "Escape") {
+      this.exitVim();
+      return;
+    }
+    if (key === "Enter" || key === "l") {
+      const entry = entries[this.browserIndex];
+      if (!entry) return;
+      if (entry.name === "..") {
+        this.enterBrowser(this.fs.normalize(this.browserPath + "/.."));
+        return;
+      }
+      const path = (this.browserPath === "/" ? "" : this.browserPath) + "/" + entry.name;
+      if (entry.type === "dir") this.enterBrowser(path);
+      else this.enterVim(path);
+    }
+  }
+
   _onVimKeydown(e) {
-    if (!this.engine) return;
+    if (!this.engine && !this.browserPath) return;
     const key = this._translateKey(e);
     if (key === null) return; // key we don't handle — let the browser do its default thing
     e.preventDefault();
+
+    if (this.browserPath) {
+      this._onBrowserKey(key);
+      return;
+    }
+
     const engine = this.engine;
     engine.handleKey(key);
     // :q (via onQuit -> exitVim()) may have already torn this.engine down

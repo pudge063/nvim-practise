@@ -12,9 +12,11 @@ export const COMMAND_NAMES = [
   "mkdir",
   "touch",
   "cat",
+  "echo",
   "rm",
   "clear",
   "vim",
+  "vi",
   "whoami",
   "w",
   "reboot",
@@ -31,19 +33,35 @@ const HELP_TEXT = [
   "  mkdir <name>     create a directory",
   "  touch <name>     create an empty file",
   "  cat <file>       print a file's contents",
+  "  echo <text>      print text (supports > file / >> file)",
   "  rm <file>        remove a file",
   "  clear            clear the screen",
-  "  vim <file>       open a file in vim (starts in Normal mode)",
+  "  vim / vi [file]  open a file in vim; no argument (or a directory)",
+  "                   browses that directory so you can pick a file",
   "  whoami           print the current user",
   "  w                show who's logged in",
   "  reboot           reload the page",
   "  help             this message",
   "",
+  "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
   "Tab completes commands and paths, like a real shell.",
 ].join("\n");
 
 function tokenize(line) {
   return line.trim().split(/\s+/).filter(Boolean);
+}
+
+// Splits a `>`/`>>` redirect off the end of a token list, if present.
+// Only the LAST `>`/`>>` in the line counts (matches real shells closely
+// enough for a one-target redirect); returns the remaining tokens plus
+// { append, target } or null.
+function splitRedirect(tokens) {
+  const idx = Math.max(tokens.lastIndexOf(">"), tokens.lastIndexOf(">>"));
+  if (idx === -1) return { tokens, redirect: null };
+  const op = tokens[idx];
+  const target = tokens[idx + 1];
+  if (!target) return { tokens: tokens.slice(0, idx), redirect: null };
+  return { tokens: tokens.slice(0, idx), redirect: { append: op === ">>", target } };
 }
 
 // `rm -rf /` (and the usual near-spellings of it) is the one command
@@ -82,36 +100,11 @@ function looksLikeRmRfRoot(fs, args) {
 
 const FAKE_PERMS = { dir: "drwxr-xr-x", file: "-rw-r--r--" };
 
-// Returns { lines: [{text, cls}], action }
-// action is null, { type: "clear" }, { type: "vim", path },
-// { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
-// looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
-// error phase, straight to the picture).
-export function runCommand(fs, rawLine) {
-  const line = rawLine.trim();
-  if (!line) return { lines: [], action: null };
-
-  const [cmd, ...args] = tokenize(line);
+// The actual command dispatch, redirect-unaware — `runCommand` below
+// strips any `>`/`>>` before calling this and decides what to do with
+// the output afterwards.
+function executeCommand(fs, cmd, args) {
   const out = (text, cls = "") => ({ text, cls });
-
-  if (cmd === "rm" && looksLikeRmRfRoot(fs, args)) {
-    return {
-      lines: [
-        out("rm: descending into '/'"),
-        out("rm: removing '/bin'"),
-        out("rm: removing '/etc'"),
-        out("rm: fatal filesystem error", "line-error"),
-      ],
-      action: { type: "meltdown" },
-    };
-  }
-
-  if (cmd === "sudo") {
-    return {
-      lines: [out("user is not in the sudoers file. This incident will be reported.", "line-error")],
-      action: { type: "meltdown-image" },
-    };
-  }
 
   try {
     switch (cmd) {
@@ -123,6 +116,9 @@ export function runCommand(fs, rawLine) {
 
       case "whoami":
         return { lines: [out("user")], action: null };
+
+      case "echo":
+        return { lines: [out(args.join(" "))], action: null };
 
       case "w":
         return {
@@ -199,19 +195,82 @@ export function runCommand(fs, rawLine) {
       case "clear":
         return { lines: [], action: { type: "clear" } };
 
-      case "vim": {
-        if (!args[0]) return { lines: [out("vim: missing operand", "line-error")], action: null };
-        const path = fs.normalize(args[0]);
-        if (fs.exists(path) && fs.isDir(path)) {
-          return { lines: [out(`vim: Is a directory: ${args[0]}`, "line-error")], action: null };
+      case "vim":
+      case "vi": {
+        // No argument, or an explicit '.', browses the current directory
+        // rather than editing anything — same idea as real vim's netrw
+        // (`vim .`), just without a real vim's full file-explorer.
+        const target = !args[0] || args[0] === "." ? fs.cwd : fs.normalize(args[0]);
+        if (fs.exists(target) && fs.isDir(target)) {
+          return { lines: [], action: { type: "browse", path: target } };
         }
-        if (!fs.exists(path)) fs.touch(path);
-        return { lines: [], action: { type: "vim", path } };
+        if (!args[0]) return { lines: [], action: { type: "browse", path: fs.cwd } };
+        if (!fs.exists(target)) fs.touch(target);
+        return { lines: [], action: { type: "vim", path: target } };
       }
 
       default:
         return { lines: [out(`command not found: ${cmd} (try 'help')`, "line-error")], action: null };
     }
+  } catch (err) {
+    if (err instanceof FsError) {
+      return { lines: [out(`${cmd}: ${err.message}`, "line-error")], action: null };
+    }
+    throw err;
+  }
+}
+
+// Returns { lines: [{text, cls}], action }
+// action is null, { type: "clear" }, { type: "vim", path },
+// { type: "browse", path } (vim/vi with no file — see executeCommand),
+// { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
+// looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
+// error phase, straight to the picture).
+export function runCommand(fs, rawLine) {
+  const line = rawLine.trim();
+  if (!line) return { lines: [], action: null };
+
+  const rawTokens = tokenize(line);
+  const out = (text, cls = "") => ({ text, cls });
+
+  if (rawTokens[0] === "rm" && looksLikeRmRfRoot(fs, rawTokens.slice(1))) {
+    return {
+      lines: [
+        out("rm: descending into '/'"),
+        out("rm: removing '/bin'"),
+        out("rm: removing '/etc'"),
+        out("rm: fatal filesystem error", "line-error"),
+      ],
+      action: { type: "meltdown" },
+    };
+  }
+
+  if (rawTokens[0] === "sudo") {
+    return {
+      lines: [out("user is not in the sudoers file. This incident will be reported.", "line-error")],
+      action: { type: "meltdown-image" },
+    };
+  }
+
+  const { tokens, redirect } = splitRedirect(rawTokens);
+  const [cmd, ...args] = tokens;
+  const result = executeCommand(fs, cmd, args);
+
+  if (!redirect) return result;
+
+  // Only redirect genuine stdout — a command that errored keeps its
+  // error visible in the terminal instead of silently vanishing into
+  // the target file (rough stdout/stderr distinction: error-styled
+  // lines never redirect).
+  const hasError = result.lines.some((l) => l.cls && l.cls.includes("line-error"));
+  if (hasError) return result;
+
+  try {
+    const text = result.lines.map((l) => l.text).join("\n");
+    const targetPath = fs.normalize(redirect.target);
+    const existing = redirect.append && fs.exists(targetPath) ? fs.read(targetPath) : "";
+    fs.write(targetPath, existing + (existing ? "\n" : "") + text);
+    return { lines: [], action: result.action };
   } catch (err) {
     if (err instanceof FsError) {
       return { lines: [out(`${cmd}: ${err.message}`, "line-error")], action: null };

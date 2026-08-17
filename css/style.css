@@ -1,8 +1,8 @@
 /* ---------- design tokens ---------- */
 :root {
-  --bg-deep: #0b0e17;
-  --bg-panel: rgba(20, 24, 38, 0.72);
-  --bg-panel-solid: #12151f;
+  --bg-deep: #06070b;
+  --bg-panel: rgba(6, 7, 12, 0.82);
+  --bg-panel-solid: #08090d;
   --border-soft: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
 
@@ -174,7 +174,31 @@ body {
   gap: 14px;
 }
 
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes fx-border-spin {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@keyframes fx-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .terminal-pane {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -186,10 +210,30 @@ body {
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
-    0 30px 60px -20px rgba(0, 0, 0, 0.6),
+    0 30px 60px -20px rgba(0, 0, 0, 0.75),
     0 0 0 1px rgba(255, 255, 255, 0.02) inset;
   overflow: hidden;
   transition: transform 0.05s linear;
+  animation: fx-panel-in 0.5s ease-out both;
+}
+
+/* Slow, subtle animated glow chasing the terminal's border — decorative
+   only, painted just on the ring (mask-composite excludes the interior)
+   so it never interferes with the terminal content itself. Degrades to
+   nothing (a static border) in browsers without @property support. */
+.terminal-pane::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--angle), transparent 0%, var(--accent) 8%, transparent 18%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  animation: fx-border-spin 7s linear infinite;
+  pointer-events: none;
 }
 
 .window-titlebar {
@@ -362,6 +406,16 @@ body {
 .vim-text {
   white-space: pre;
   position: relative;
+}
+
+.vim-text.browser-dir {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.vim-view.mode-browse .vim-mode-indicator {
+  background: rgba(196, 181, 253, 0.2);
+  color: var(--accent-2);
 }
 
 .vim-char {
@@ -539,7 +593,8 @@ body {
   border-radius: var(--radius-lg);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.75);
+  animation: fx-panel-in 0.5s ease-out 0.08s both;
 }
 
 .tasks-header {
@@ -608,7 +663,17 @@ body {
   border-color: var(--accent);
   background: rgba(125, 211, 252, 0.16);
   color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.25);
+  animation: fx-tile-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes fx-tile-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.4);
+  }
 }
 
 .task-tile.done {
@@ -763,6 +828,7 @@ body {
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  animation: fx-panel-in 0.5s ease-out 0.16s both;
 }
 
 .cmds-title {
@@ -798,13 +864,7 @@ body {
 /* ---------- promo card (nvim-config quickstart) — deliberately its own
    black, minimal look, distinct from the rest of the glass UI ---------- */
 .promo-pane {
-  /* full-width row of its own below the terminal/tasks columns —
-     matches their combined width so the install command never needs
-     its own horizontal scrollbar */
-  flex-basis: 100%;
   width: 100%;
-  max-width: 1022px;
-  margin: 0 auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -814,6 +874,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-lg);
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+  animation: fx-panel-in 0.5s ease-out 0.24s both;
 }
 
 .promo-title {
@@ -825,7 +886,7 @@ body {
 
 .promo-install-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
@@ -849,11 +910,12 @@ body {
 
 .promo-install-line code {
   flex: 1;
-  overflow-x: auto;
+  min-width: 0;
   font-family: var(--mono);
   font-size: 0.74rem;
   color: #e8eaf2;
-  white-space: pre;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .promo-copy-icon {
@@ -1046,6 +1108,11 @@ body {
   color: var(--accent-bad);
 }
 
+/* CS:GO-style flashbang: hold pure white just long enough to register as
+   a blind-out, then fade to black while the picture fades in underneath
+   — a viewer's eyes are "recovering" as it settles. Timed to roughly
+   match img/flashbang.mp3's own length (~2.5s) so the visual doesn't
+   finish while the sound is still playing. */
 .meltdown-overlay {
   position: fixed;
   inset: 0;
@@ -1053,8 +1120,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
-  animation: fx-flash-in 0.25s ease-out;
+  animation: fx-flashbang 2.5s ease-out forwards;
 }
 
 .meltdown-overlay.hidden {
@@ -1066,14 +1132,27 @@ body {
   max-height: 80vh;
   border-radius: var(--radius-lg);
   box-shadow: 0 0 120px rgba(251, 113, 133, 0.55);
-  animation: fx-shake 0.4s infinite;
+  opacity: 0;
+  animation: fx-shake 0.4s infinite, fx-img-reveal 1.8s ease-out 0.4s forwards;
 }
 
-@keyframes fx-flash-in {
-  from {
+@keyframes fx-flashbang {
+  0% {
     background: #fff;
   }
-  to {
+  12% {
+    background: #fff;
+  }
+  100% {
     background: #000;
+  }
+}
+
+@keyframes fx-img-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
