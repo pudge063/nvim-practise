@@ -39,6 +39,7 @@ export class FileSystem {
   constructor() {
     this.root = seedTree();
     this.cwd = "/home/user";
+    this.prevCwd = "/home/user";
   }
 
   // --- path handling ---
@@ -93,8 +94,8 @@ export class FileSystem {
 
   list(path = this.cwd) {
     const node = this.resolveNode(path);
-    if (!node) throw new FsError(`нет такого файла или каталога: ${path}`);
-    if (node.type !== "dir") throw new FsError(`не каталог: ${path}`);
+    if (!node) throw new FsError(`No such file or directory: ${path}`);
+    if (node.type !== "dir") throw new FsError(`Not a directory: ${path}`);
     return Object.entries(node.children)
       .map(([name, n]) => ({ name, type: n.type }))
       .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
@@ -102,42 +103,43 @@ export class FileSystem {
 
   chdir(path) {
     const norm = this.normalize(path);
-    if (!this.exists(norm)) throw new FsError(`нет такого каталога: ${path}`);
-    if (!this.isDir(norm)) throw new FsError(`не каталог: ${path}`);
+    if (!this.exists(norm)) throw new FsError(`No such file or directory: ${path}`);
+    if (!this.isDir(norm)) throw new FsError(`Not a directory: ${path}`);
+    if (norm !== this.cwd) this.prevCwd = this.cwd;
     this.cwd = norm;
     return norm;
   }
 
   mkdir(path) {
     const { parentPath, name } = this.splitParent(path);
-    if (!name) throw new FsError("укажите имя каталога");
+    if (!name) throw new FsError("missing operand");
     const parent = this.resolveNode(parentPath);
-    if (!parent || parent.type !== "dir") throw new FsError(`нет такого каталога: ${parentPath}`);
-    if (parent.children[name]) throw new FsError(`уже существует: ${name}`);
+    if (!parent || parent.type !== "dir") throw new FsError(`No such file or directory: ${parentPath}`);
+    if (parent.children[name]) throw new FsError(`File exists: ${name}`);
     parent.children[name] = dir();
   }
 
   touch(path) {
     const { parentPath, name } = this.splitParent(path);
-    if (!name) throw new FsError("укажите имя файла");
+    if (!name) throw new FsError("missing operand");
     const parent = this.resolveNode(parentPath);
-    if (!parent || parent.type !== "dir") throw new FsError(`нет такого каталога: ${parentPath}`);
+    if (!parent || parent.type !== "dir") throw new FsError(`No such file or directory: ${parentPath}`);
     if (!parent.children[name]) parent.children[name] = file("");
   }
 
   read(path) {
     const node = this.resolveNode(path);
-    if (!node) throw new FsError(`нет такого файла: ${path}`);
-    if (node.type !== "file") throw new FsError(`это каталог: ${path}`);
+    if (!node) throw new FsError(`No such file or directory: ${path}`);
+    if (node.type !== "file") throw new FsError(`Is a directory: ${path}`);
     return node.content;
   }
 
   write(path, content) {
     const { parentPath, name } = this.splitParent(path);
     const parent = this.resolveNode(parentPath);
-    if (!parent || parent.type !== "dir") throw new FsError(`нет такого каталога: ${parentPath}`);
+    if (!parent || parent.type !== "dir") throw new FsError(`No such file or directory: ${parentPath}`);
     if (parent.children[name] && parent.children[name].type === "dir") {
-      throw new FsError(`это каталог: ${path}`);
+      throw new FsError(`Is a directory: ${path}`);
     }
     parent.children[name] = file(content);
   }
@@ -145,7 +147,7 @@ export class FileSystem {
   remove(path) {
     const { parentPath, name } = this.splitParent(path);
     const parent = this.resolveNode(parentPath);
-    if (!parent || !parent.children[name]) throw new FsError(`нет такого файла: ${path}`);
+    if (!parent || !parent.children[name]) throw new FsError(`No such file or directory: ${path}`);
     delete parent.children[name];
   }
 

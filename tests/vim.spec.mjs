@@ -133,6 +133,30 @@ test("operator + G respects an explicit count (d2G from line 4)", () => {
   assert.equal(e.lines.join("|"), "a|e");
 });
 
+test("count typed before a char-argument command survives to the argument keypress: 3rY, 3f, 2gg", () => {
+  // Regression: pendingPrefixCount used to not exist, so any count typed
+  // before 'r'/'f'/'g' was silently dropped by the time the follow-up
+  // key (the replacement char, the search char, or the second 'g')
+  // arrived — 3rY behaved like 1rY, etc.
+  const r = new VimEngine("xxxxx", "t.txt");
+  keys(r, ["3", "r", "Y"]);
+  assert.equal(r.lines[0], "YYYxx");
+
+  const f = new VimEngine("a-b-c-d-e", "t.txt");
+  keys(f, ["2", "f", "-"]);
+  assert.equal(f.cursor.col, f.lines[0].indexOf("-", f.lines[0].indexOf("-") + 1));
+
+  const g = new VimEngine("a\nb\nc\nd\ne", "t.txt");
+  keys(g, ["3", "g", "g"]);
+  assert.equal(g.cursor.row, 2);
+});
+
+test("count before an operator's f-motion also carries through: d2f-", () => {
+  const e = new VimEngine("a-b-c-d-e", "t.txt");
+  keys(e, ["d", "2", "f", "-"]);
+  assert.equal(e.lines[0], "c-d-e");
+});
+
 test("search: / jumps to first match, n repeats forward and wraps", () => {
   const e = new VimEngine("alpha\nbeta\ngamma\nbeta again", "t.txt");
   keys(e, ["/", "b", "e", "t", "a", "Enter"]);

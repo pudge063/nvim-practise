@@ -2,8 +2,26 @@
 // vim.js knows nothing about the DOM; this is the only module that
 // translates browser KeyboardEvents into the key vocabulary vim.js expects
 // and turns VimEngine.getState() into pixels.
-import { runCommand } from "./shell.js";
+import { runCommand, COMMAND_NAMES } from "./shell.js";
 import { VimEngine, MODE } from "./vim.js";
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function longestCommonPrefix(strs) {
+  let prefix = strs[0];
+  for (const s of strs.slice(1)) {
+    while (!s.startsWith(prefix)) prefix = prefix.slice(0, -1);
+  }
+  return prefix;
+}
+
+function randHex() {
+  return Math.floor(Math.random() * 0xffffffff)
+    .toString(16)
+    .padStart(8, "0");
+}
 
 const MODE_LABEL = {
   [MODE.NORMAL]: "NORMAL",
@@ -23,12 +41,30 @@ export class Terminal {
     this.engine = null;
     this.vimPath = null;
 
-    this._printLine("Добро пожаловать в vimquest. Наберите help для списка команд.", "line-hint");
+    this._printLine("Welcome to vimquest. Type help for a list of commands.", "line-hint");
     this._updatePrompt();
     this.els.shellInput.addEventListener("keydown", (e) => this._onShellKeydown(e));
     this.els.vimView.addEventListener("keydown", (e) => this._onVimKeydown(e));
     this.els.terminalPane.addEventListener("click", () => this._focusActive());
+    this.els.vimHintClose?.addEventListener("click", () => this.hideInlineHint());
     this._focusActive();
+  }
+
+  // Contextual "you look stuck" popup shown inside the vim view itself
+  // (as opposed to the always-available manual hint button in the tasks
+  // panel) — see tasks.js's _maybeShowInlineHint for the trigger
+  // condition (2+ keystrokes past a task's par, re-shown periodically).
+  showInlineHint(html) {
+    if (!this.els.vimHintPopup) return;
+    this.els.vimHintText.innerHTML = html;
+    this.els.vimHintPopup.classList.remove("hidden");
+    clearTimeout(this._hintTimeout);
+    this._hintTimeout = setTimeout(() => this.hideInlineHint(), 8000);
+  }
+
+  hideInlineHint() {
+    this.els.vimHintPopup?.classList.add("hidden");
+    clearTimeout(this._hintTimeout);
   }
 
   _focusActive() {
@@ -51,6 +87,11 @@ export class Terminal {
     div.className = "line " + cls;
     div.textContent = text;
     this.els.terminalOutput.appendChild(div);
+    // Caps DOM growth during the (deliberately never-ending) meltdown
+    // easter egg — normal usage never gets close to this many lines.
+    while (this.els.terminalOutput.childElementCount > 400) {
+      this.els.terminalOutput.removeChild(this.els.terminalOutput.firstChild);
+    }
     this.els.terminalOutput.scrollTop = this.els.terminalOutput.scrollHeight;
   }
 
@@ -85,6 +126,12 @@ export class Terminal {
       if (result.action?.type === "vim") {
         this.enterVim(result.action.path);
       }
+      if (result.action?.type === "meltdown") {
+        this._startMeltdown();
+      }
+      if (result.action?.type === "reboot") {
+        setTimeout(() => window.location.reload(), 500);
+      }
       return;
     }
     if (e.key === "ArrowUp") {
@@ -99,6 +146,83 @@ export class Terminal {
       this.els.shellInput.value = this.history[this.historyIndex] ?? "";
       return;
     }
+    if (e.key === "Tab") {
+      e.preventDefault(); // never let Tab move focus away — real terminals complete instead
+      this._completeShellInput();
+      return;
+    }
+  }
+
+  // Real-terminal-style completion: first word completes against known
+  // commands, anything after completes against files/dirs in the target
+  // directory. One match completes it outright; several complete to their
+  // longest common prefix and, if that doesn't advance anything, print
+  // the candidate list (bash's classic double-Tab behavior, collapsed to
+  // a single Tab here since there's no separate "did nothing" signal to
+  // wait on).
+  _completeShellInput() {
+    const value = this.els.shellInput.value;
+    const parts = value.split(" ");
+    const partial = parts[parts.length - 1];
+    const isCommandPos = parts.length === 1;
+
+    let candidates;
+    if (isCommandPos) {
+      candidates = COMMAND_NAMES.filter((c) => c.startsWith(partial));
+    } else {
+      const slash = partial.lastIndexOf("/");
+      const dirPath = slash === -1 ? this.fs.cwd : partial.slice(0, slash) || "/";
+      const namePartial = slash === -1 ? partial : partial.slice(slash + 1);
+      const prefix = slash === -1 ? "" : partial.slice(0, slash + 1);
+      let entries;
+      try {
+        entries = this.fs.list(dirPath);
+      } catch {
+        entries = [];
+      }
+      candidates = entries
+        .filter((entry) => entry.name.startsWith(namePartial))
+        .map((entry) => prefix + entry.name + (entry.type === "dir" ? "/" : ""));
+    }
+
+    if (candidates.length === 0) return;
+    if (candidates.length === 1) {
+      parts[parts.length - 1] = candidates[0];
+      this.els.shellInput.value = parts.join(" ") + (isCommandPos ? " " : "");
+      return;
+    }
+    const lcp = longestCommonPrefix(candidates);
+    if (lcp.length > partial.length) {
+      parts[parts.length - 1] = lcp;
+      this.els.shellInput.value = parts.join(" ");
+      return;
+    }
+    this._printCommandEcho(value);
+    this._printLine(candidates.join("  "), "line-dir");
+  }
+
+  // `rm -rf /` easter egg (see shell.js's looksLikeRmRfRoot). Deliberately
+  // never stops itself — "бесконечно" was the ask. A page reload is the
+  // only way out, which is the point: it's a fake, theatrical "meltdown",
+  // not a real error state anything needs to recover from gracefully.
+  _startMeltdown() {
+    if (this._meltdownInterval) return;
+    this.els.shellInput.disabled = true;
+    this.els.terminalPane.classList.add("meltdown");
+    const devices = ["/dev/sda1", "/dev/nvme0n1", "/dev/loop0", "/dev/zram0", "/dev/null"];
+    const messages = [
+      () => `kernel panic: not syncing — VFS: unable to mount root fs on ${pick(devices)}`,
+      () => `rm: cannot remove '${pick(devices)}': Device or resource busy`,
+      () => `Segmentation fault (core dumped) at 0x${randHex()}`,
+      () => `[${(performance.now() / 1000).toFixed(3)}] EXT4-fs error (device ${pick(devices)}): journal has aborted`,
+      () => `bash: /bin/bash: cannot execute binary file`,
+      () => `rm: it's dangerous to go alone — take this: 🗡️`,
+      () => `Watchdog CPU:${Math.floor(Math.random() * 8)}: hung task, blocked for more than 120 seconds`,
+      () => `vimquest: filesystem irrecoverably gone. reload the page.`,
+    ];
+    this._meltdownInterval = setInterval(() => {
+      this._printLine(messages[Math.floor(Math.random() * messages.length)](), "line-error line-meltdown");
+    }, 140);
   }
 
   // ---------- vim ----------
@@ -106,6 +230,7 @@ export class Terminal {
   // opts: { cursor: {row, col} } — used by tasks.js to start a task with
   // the cursor somewhere other than the top of the file.
   enterVim(path, opts = {}) {
+    this.hideInlineHint();
     const content = this.fs.exists(path) ? this.fs.read(path) : "";
     if (!this.fs.exists(path)) this.fs.touch(path);
     this.vimPath = path;
@@ -125,6 +250,7 @@ export class Terminal {
   }
 
   exitVim() {
+    this.hideInlineHint();
     this.engine = null;
     this.vimPath = null;
     this.els.vimView.classList.add("hidden");
@@ -207,7 +333,7 @@ export class Terminal {
     this.els.vimFilename.textContent = state.filename + (state.modified ? " [+]" : "");
     this.els.vimKeycount.textContent = state.message
       ? state.message
-      : `${state.keystrokes} нажат${pluralKeys(state.keystrokes)}`;
+      : `${state.keystrokes} ${state.keystrokes === 1 ? "keystroke" : "keystrokes"}`;
     this.els.vimPosition.textContent = `${state.cursor.row + 1},${state.cursor.col + 1}`;
 
     this.els.vimView.className = "vim-view mode-" + state.mode;
@@ -241,10 +367,3 @@ export class Terminal {
   }
 }
 
-function pluralKeys(n) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "ие";
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "ия";
-  return "ий";
-}

@@ -130,6 +130,7 @@ export class VimEngine {
     this.pendingOperator = null;
     this.opCount = 1;
     this.pendingPrefix = null; // 'g' awaiting second key, or 'f'/'r' awaiting char, or 'i'/'a' text-object prefix
+    this.pendingPrefixCount = 1; // count captured before 'f'/'r'/'g' was pressed, for once the prefix resolves
     this.register = { text: "", linewise: false };
     this.cmdlineMode = null; // 'command' | 'search'
     this.cmdline = "";
@@ -204,7 +205,7 @@ export class VimEngine {
   _undo() {
     const snap = this.undoStack.pop();
     if (!snap) {
-      this.message = "уже самое начало истории изменений";
+      this.message = "Already at oldest change";
       return;
     }
     this.redoStack.push({ lines: this.lines.slice(), cursor: { ...this.cursor } });
@@ -216,7 +217,7 @@ export class VimEngine {
   _redo() {
     const snap = this.redoStack.pop();
     if (!snap) {
-      this.message = "нечего повторить";
+      this.message = "Already at newest change";
       return;
     }
     this.undoStack.push({ lines: this.lines.slice(), cursor: { ...this.cursor } });
@@ -307,17 +308,21 @@ export class VimEngine {
   // ---------- normal mode ----------
 
   _handleNormal(key) {
-    // char-argument pending (f, r)
+    // char-argument pending (f, r). The count (if any) was typed BEFORE
+    // the 'f'/'r'/'g' key itself and stashed in pendingPrefixCount at
+    // that point — real vim doesn't accept digits between e.g. 'f' and
+    // its char argument, so this key is always the literal argument,
+    // never more count digits.
     if (this.pendingPrefix === "f") {
       this.pendingPrefix = null;
-      const count = this._takeCount();
+      const count = this.pendingPrefixCount;
       const target = this._findCharForward(key, count);
       this._applyMotionOrOperator(target);
       return;
     }
     if (this.pendingPrefix === "r") {
       this.pendingPrefix = null;
-      const count = this._takeCount();
+      const count = this.pendingPrefixCount;
       const { row, col } = this.cursor;
       const line = this._line(row);
       if (key !== "Escape" && col + count <= line.length) {
@@ -344,8 +349,7 @@ export class VimEngine {
     if (this.pendingPrefix === "g") {
       this.pendingPrefix = null;
       if (key === "g") {
-        const count = this._takeCount();
-        const target = this._motion("gg", count);
+        const target = this._motion("gg", this.pendingPrefixCount);
         this._applyMotionOrOperator(target);
       } else {
         this._cancelOperator();
@@ -375,10 +379,12 @@ export class VimEngine {
       }
       if (key === "g") {
         this.pendingPrefix = "g";
+        this.pendingPrefixCount = count * this.opCount;
         return;
       }
       if (key === "f") {
         this.pendingPrefix = "f";
+        this.pendingPrefixCount = count * this.opCount;
         return;
       }
       const motion = this._motion(key, count * this.opCount);
@@ -408,9 +414,11 @@ export class VimEngine {
       }
       case "g":
         this.pendingPrefix = "g";
+        this.pendingPrefixCount = count;
         return;
       case "f":
         this.pendingPrefix = "f";
+        this.pendingPrefixCount = count;
         return;
       case "d":
       case "y":
@@ -430,6 +438,7 @@ export class VimEngine {
       }
       case "r":
         this.pendingPrefix = "r";
+        this.pendingPrefixCount = count;
         return;
       case "p":
         this._paste(true);
@@ -528,6 +537,7 @@ export class VimEngine {
     this.pendingOperator = null;
     this.opCount = 1;
     this.pendingPrefix = null;
+    this.pendingPrefixCount = 1;
   }
 
   // Used both for a bare motion key and for the tail end of a multi-key
@@ -803,7 +813,7 @@ export class VimEngine {
         return;
       }
     }
-    this.message = `узор не найден: ${this.searchTerm}`;
+    this.message = `E486: Pattern not found: ${this.searchTerm}`;
   }
 
   _runExCommand(raw) {
@@ -812,7 +822,7 @@ export class VimEngine {
       this.savedOnce = true;
       this.modified = false;
       this.onSave(this.lines.join("\n"));
-      this.message = "записано";
+      this.message = `"${this.filename}" written`;
       return;
     }
     if (cmd === "q" || cmd === "q!") {
@@ -838,7 +848,7 @@ export class VimEngine {
     if (cmd === "'<,'>sort") {
       const range = this.lastVisualRange;
       if (!range) {
-        this.message = "нет выделения";
+        this.message = "E20: Mark not set";
         return;
       }
       this._snapshot();
@@ -862,7 +872,7 @@ export class VimEngine {
       this.lines = this.lines.map((l) => l.replace(re, replacement));
       return;
     }
-    this.message = `E492: команда не найдена: ${cmd}`;
+    this.message = `E492: Not an editor command: ${cmd}`;
   }
 }
 
