@@ -1,0 +1,650 @@
+/* ---------- design tokens ---------- */
+:root {
+  --bg-deep: #0b0e17;
+  --bg-panel: rgba(20, 24, 38, 0.72);
+  --bg-panel-solid: #12151f;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --fg: #e8eaf2;
+  --fg-dim: #8b90a8;
+  --fg-faint: #565b73;
+
+  --accent: #7dd3fc;
+  --accent-2: #c4b5fd;
+  --accent-3: #86efac;
+  --accent-warn: #fcd34d;
+  --accent-bad: #fb7185;
+
+  --mono: "SF Mono", "Fira Code", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --radius-lg: 18px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--sans);
+  color: var(--fg);
+  background: var(--bg-deep);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* ---------- animated background ---------- */
+.bg-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: radial-gradient(ellipse at top, #131829 0%, #0b0e17 60%);
+}
+
+.bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.65;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+.bg-glow-1 {
+  width: 46vw;
+  height: 46vw;
+  top: -12%;
+  left: -10%;
+  background: radial-gradient(circle, #6366f1, transparent 72%);
+}
+
+.bg-glow-2 {
+  width: 42vw;
+  height: 42vw;
+  bottom: -16%;
+  right: -8%;
+  background: radial-gradient(circle, #06b6d4, transparent 72%);
+  animation-duration: 26s;
+  animation-delay: -6s;
+}
+
+.bg-glow-3 {
+  width: 34vw;
+  height: 34vw;
+  top: 26%;
+  right: 18%;
+  background: radial-gradient(circle, #a855f7, transparent 72%);
+  animation-duration: 30s;
+  animation-delay: -12s;
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(4%, 6%) scale(1.08);
+  }
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 75%);
+}
+
+/* ---------- header / footer ---------- */
+.site-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 22px clamp(16px, 4vw, 48px) 6px;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.logo-accent {
+  color: var(--accent);
+}
+
+.tagline {
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+}
+
+.site-footer {
+  padding: 10px clamp(16px, 4vw, 48px) 22px;
+  color: var(--fg-faint);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.site-footer code {
+  color: var(--fg-dim);
+}
+
+/* ---------- workspace layout ---------- */
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 22px;
+  padding: 10px clamp(16px, 4vw, 48px) 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 880px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- terminal window ---------- */
+.terminal-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  overflow: hidden;
+}
+
+.window-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.dot-red {
+  background: #ff5f57;
+}
+
+.dot-yellow {
+  background: #febc2e;
+}
+
+.dot-green {
+  background: #28c840;
+}
+
+.window-title {
+  margin: 0 auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+  transform: translateX(-16px);
+}
+
+.window-body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ---------- shell ---------- */
+.shell-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.line {
+  min-height: 1.55em;
+}
+
+.line-cmd .cmd-prompt {
+  color: var(--accent-3);
+  margin-right: 6px;
+}
+
+.line-error {
+  color: var(--accent-bad);
+}
+
+.line-dir {
+  color: var(--accent);
+}
+
+.line-hint {
+  color: var(--fg-dim);
+}
+
+.terminal-inputline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.prompt {
+  color: var(--accent-3);
+  white-space: nowrap;
+}
+
+.shell-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  caret-color: var(--accent);
+}
+
+/* ---------- vim view ---------- */
+.vim-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.vim-view.hidden,
+.shell-view.hidden {
+  display: none;
+}
+
+.vim-buffer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.vim-line {
+  display: flex;
+  padding: 0 18px;
+  min-height: 1.5em;
+  line-height: 1.5;
+}
+
+.vim-line.vim-line-active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.vim-lnum {
+  width: 3.4em;
+  flex-shrink: 0;
+  text-align: right;
+  margin-right: 14px;
+  color: var(--fg-faint);
+  user-select: none;
+}
+
+.vim-line.vim-line-active .vim-lnum {
+  color: var(--accent-warn);
+}
+
+.vim-text {
+  white-space: pre;
+  position: relative;
+}
+
+.vim-char {
+  position: relative;
+}
+
+.vim-char.vim-cursor {
+  background: var(--accent);
+  color: var(--bg-deep);
+  border-radius: 2px;
+}
+
+.vim-view.mode-insert .vim-char.vim-cursor {
+  background: transparent;
+  color: inherit;
+  box-shadow: -1px 0 0 var(--accent-3) inset;
+}
+
+.vim-char.vim-selected {
+  background: rgba(196, 181, 253, 0.32);
+}
+
+.vim-cmdline {
+  padding: 5px 18px;
+  font-family: var(--mono);
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg);
+}
+
+.vim-cmdline.hidden {
+  display: none;
+}
+
+.vim-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.vim-statusline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 18px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-dim);
+}
+
+.vim-mode-indicator {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(125, 211, 252, 0.18);
+  color: var(--accent);
+}
+
+.vim-view.mode-insert .vim-mode-indicator {
+  background: rgba(134, 239, 172, 0.18);
+  color: var(--accent-3);
+}
+
+.vim-view.mode-visual .vim-mode-indicator,
+.vim-view.mode-visualline .vim-mode-indicator {
+  background: rgba(196, 181, 253, 0.2);
+  color: var(--accent-2);
+}
+
+.vim-view.mode-command .vim-mode-indicator {
+  background: rgba(252, 211, 77, 0.2);
+  color: var(--accent-warn);
+}
+
+.vim-status-spacer {
+  flex: 1;
+}
+
+.vim-keycount {
+  color: var(--fg-faint);
+}
+
+/* ---------- tasks pane ---------- */
+.tasks-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.tasks-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tasks-header h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.progress-summary {
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+}
+
+.tasks-list {
+  flex: 0 1 50%;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.task-category {
+  padding: 10px 8px 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.task-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.task-item.active {
+  background: rgba(125, 211, 252, 0.14);
+  color: var(--accent);
+}
+
+.task-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.task-item.done .task-check {
+  background: var(--accent-3);
+  border-color: var(--accent-3);
+  color: #0b0e17;
+}
+
+.task-detail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--border-soft);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.task-detail-empty {
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.task-detail-empty code {
+  color: var(--accent);
+}
+
+.task-detail h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.task-detail .task-meta {
+  font-size: 0.72rem;
+  color: var(--fg-faint);
+  margin-bottom: 10px;
+}
+
+.task-detail .task-desc {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--fg);
+  margin-bottom: 14px;
+}
+
+.task-detail code {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--accent);
+}
+
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hint-btn:hover {
+  background: rgba(252, 211, 77, 0.12);
+  border-color: var(--accent-warn);
+  color: var(--accent-warn);
+}
+
+.hint-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(252, 211, 77, 0.09);
+  border: 1px solid rgba(252, 211, 77, 0.25);
+  color: var(--fg);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.hint-box.hidden {
+  display: none;
+}
+
+.task-status {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.task-status.status-pending {
+  color: var(--fg-dim);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.task-status.status-done {
+  color: var(--accent-3);
+  background: rgba(134, 239, 172, 0.12);
+}
+
+.reopen-btn {
+  margin-top: 10px;
+  display: inline-flex;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.reopen-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.hidden {
+  display: none !important;
+}

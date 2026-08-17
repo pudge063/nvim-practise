@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vimquest — учи vim в браузере</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="bg-scene" aria-hidden="true">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-grid"></div>
+  </div>
+
+  <header class="site-header">
+    <span class="logo">vim<span class="logo-accent">quest</span></span>
+    <span class="tagline">учись vim, не выходя из браузера</span>
+  </header>
+
+  <main class="workspace">
+    <section class="terminal-pane" id="terminal-pane">
+      <div class="window-titlebar">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="window-title" id="window-title">bash — ~/</span>
+      </div>
+
+      <div class="window-body">
+        <!-- shell view -->
+        <div id="shell-view" class="shell-view">
+          <div id="terminal-output" class="terminal-output" tabindex="-1"></div>
+          <div class="terminal-inputline">
+            <span class="prompt" id="prompt-text">user@vimquest:~$</span>
+            <input
+              id="shell-input"
+              class="shell-input"
+              type="text"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+
+        <!-- vim view -->
+        <div id="vim-view" class="vim-view hidden" tabindex="0">
+          <div id="vim-buffer" class="vim-buffer"></div>
+          <div id="vim-cmdline" class="vim-cmdline hidden">
+            <span id="vim-cmdline-prefix">:</span><span id="vim-cmdline-text"></span><span class="vim-caret"></span>
+          </div>
+          <div class="vim-statusline">
+            <span id="vim-mode-indicator" class="vim-mode-indicator">NORMAL</span>
+            <span id="vim-filename" class="vim-filename">[No Name]</span>
+            <span class="vim-status-spacer"></span>
+            <span id="vim-keycount" class="vim-keycount"></span>
+            <span id="vim-position" class="vim-position">1,1</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="tasks-pane">
+      <div class="tasks-header">
+        <h2>Задания</h2>
+        <div id="progress-summary" class="progress-summary">0 / 0 выполнено</div>
+      </div>
+
+      <div id="tasks-list" class="tasks-list"></div>
+
+      <div id="task-detail" class="task-detail">
+        <p class="task-detail-empty">
+          Выберите задание слева, либо потренируйтесь свободно —
+          <code>vim welcome.txt</code> в терминале откроет обычный файл
+          без привязки к заданиям.
+        </p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <span>Наберите <code>help</code> в терминале, чтобы увидеть список команд.</span>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
