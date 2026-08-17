@@ -811,9 +811,13 @@ body {
 .rmrf-warning {
   text-align: center;
   font-family: var(--mono);
-  font-size: 0.74rem;
-  color: var(--accent-warn);
-  opacity: 0.75;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-bad);
+  padding: 8px 14px;
+  border: 1.5px solid var(--accent-bad);
+  border-radius: var(--radius-md);
+  background: rgba(251, 113, 133, 0.1);
 }
 
 /* ---------- basic commands cheat sheet ---------- */
@@ -864,12 +868,17 @@ body {
 /* ---------- promo card (nvim-config quickstart) — deliberately its own
    black, minimal look, distinct from the rest of the glass UI ---------- */
 .promo-pane {
+  /* its own wide, centered row below the terminal/tasks columns —
+     wider than the terminal column on purpose, not just matching it */
+  flex-basis: 100%;
   width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px 20px;
+  padding: 22px 28px;
   background: #000;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-lg);
@@ -932,7 +941,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  align-self: flex-start;
+  align-self: center;
   padding: 9px 18px;
   border-radius: var(--radius-md);
   background: #0a0a0a;
