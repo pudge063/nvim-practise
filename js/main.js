@@ -30,6 +30,7 @@ const els = {
   progressSummary: $("progress-summary"),
   progressStars: $("progress-stars"),
   freeplayBtn: $("freeplay-btn"),
+  meltdownOverlay: $("meltdown-overlay"),
 };
 
 const fs = new FileSystem();
@@ -44,11 +45,13 @@ const terminal = new Terminal({
 taskManager = new TaskManager({ fs, terminal, els });
 
 // Quickstart copy button — page-level chrome, doesn't belong to any
-// module above (not shell/vim/task state).
-const copyBtn = $("promo-copy-btn");
+// module above (not shell/vim/task state). The whole install-command
+// row is the click target, not a separate button next to it.
+const installLine = $("promo-install-line");
 const installCmd = $("promo-install-cmd");
-if (copyBtn && installCmd) {
-  copyBtn.addEventListener("click", async () => {
+const copyIcon = $("promo-copy-icon");
+if (installLine && installCmd) {
+  installLine.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(installCmd.textContent.trim());
     } catch {
@@ -60,12 +63,12 @@ if (copyBtn && installCmd) {
       sel.removeAllRanges();
       sel.addRange(range);
     }
-    const original = copyBtn.textContent;
-    copyBtn.textContent = "✓";
-    copyBtn.classList.add("copied");
+    installLine.classList.add("copied");
+    const original = copyIcon.textContent;
+    copyIcon.textContent = "✓";
     setTimeout(() => {
-      copyBtn.textContent = original;
-      copyBtn.classList.remove("copied");
+      copyIcon.textContent = original;
+      installLine.classList.remove("copied");
     }, 1500);
   });
 }

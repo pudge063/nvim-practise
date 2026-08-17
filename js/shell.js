@@ -18,6 +18,7 @@ export const COMMAND_NAMES = [
   "whoami",
   "w",
   "reboot",
+  "sudo",
   "help",
 ];
 
@@ -50,23 +51,42 @@ function tokenize(line) {
 // is a fake filesystem, so it was never going to delete anything real —
 // the "meltdown" is purely theatrical (see terminal.js's `meltdown`
 // action), same spirit as e.g. `sl` in a real shell.
-function looksLikeRmRfRoot(args) {
+//
+// -r/-f detection is permissive by design: any short flag containing
+// 'r' counts toward recursive and any containing 'f' toward force
+// (case-insensitive, so -R counts too), in addition to the long forms —
+// covers -rf, -fr, -Rf, -r -f, -r --force, --recursive -f, etc. without
+// enumerating every ordering by hand.
+function isRecursiveForce(flags) {
+  const hasR = flags.includes("--recursive") || flags.some((f) => !f.startsWith("--") && /r/i.test(f));
+  const hasF = flags.includes("--force") || flags.some((f) => !f.startsWith("--") && /f/i.test(f));
+  return hasR && hasF;
+}
+
+// A path "targets root" if it literally IS root (after resolving
+// ./.. and symlink-free normalization), or if it's a glob over root's
+// contents (`/*`, no real globbing engine here so these are just
+// recognized as literal tokens), or if it's a bare `*` while sitting
+// in `/` itself (`cd /; rm -rf *`).
+function targetsRoot(fs, path) {
+  if (path === "*") return fs.cwd === "/";
+  if (path === "/*" || path === "/**") return true;
+  return fs.normalize(path) === "/";
+}
+
+function looksLikeRmRfRoot(fs, args) {
   const flags = args.filter((a) => a.startsWith("-"));
   const paths = args.filter((a) => !a.startsWith("-"));
-  const hasForce = flags.includes("--force");
-  const hasRecursive = flags.includes("--recursive");
-  const hasCombinedRf = flags.some((f) => /^-[a-z]*r[a-z]*f[a-z]*$/i.test(f) || /^-[a-z]*f[a-z]*r[a-z]*$/i.test(f));
-  const hasSeparateRf = flags.includes("-r") && flags.includes("-f");
-  const isRf = hasCombinedRf || hasSeparateRf || (hasForce && hasRecursive);
-  const targetsRoot = paths.some((p) => p === "/" || p === "/*");
-  return isRf && targetsRoot;
+  return isRecursiveForce(flags) && paths.some((p) => targetsRoot(fs, p));
 }
 
 const FAKE_PERMS = { dir: "drwxr-xr-x", file: "-rw-r--r--" };
 
 // Returns { lines: [{text, cls}], action }
 // action is null, { type: "clear" }, { type: "vim", path },
-// { type: "reboot" }, or { type: "meltdown" } (see looksLikeRmRfRoot above).
+// { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
+// looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
+// error phase, straight to the picture).
 export function runCommand(fs, rawLine) {
   const line = rawLine.trim();
   if (!line) return { lines: [], action: null };
@@ -74,7 +94,7 @@ export function runCommand(fs, rawLine) {
   const [cmd, ...args] = tokenize(line);
   const out = (text, cls = "") => ({ text, cls });
 
-  if (cmd === "rm" && looksLikeRmRfRoot(args)) {
+  if (cmd === "rm" && looksLikeRmRfRoot(fs, args)) {
     return {
       lines: [
         out("rm: descending into '/'"),
@@ -83,6 +103,13 @@ export function runCommand(fs, rawLine) {
         out("rm: fatal filesystem error", "line-error"),
       ],
       action: { type: "meltdown" },
+    };
+  }
+
+  if (cmd === "sudo") {
+    return {
+      lines: [out("user is not in the sudoers file. This incident will be reported.", "line-error")],
+      action: { type: "meltdown-image" },
     };
   }
 

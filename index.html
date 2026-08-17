@@ -16,9 +16,12 @@
 
   <div id="fx-layer" aria-hidden="true"></div>
 
+  <div id="meltdown-overlay" class="meltdown-overlay hidden" aria-hidden="true">
+    <img src="img/meltdown.jpg" alt="" />
+  </div>
+
   <header class="site-header">
     <span class="logo">vim<span class="logo-accent">quest</span></span>
-    <span class="tagline">учись vim, не выходя из браузера</span>
   </header>
 
   <main class="workspace">
@@ -70,33 +73,33 @@
         </div>
       </section>
 
-      <section class="promo-pane">
-        <div class="promo-header">
-          <span class="promo-title">⚡ Мой личный конфиг Neovim</span>
-          <span class="promo-sub"
-            >Терминал на этой странице вдохновлён им — LSP, Telescope, DAP, форматтеры, всё одной командой,
-            без Homebrew.</span
-          >
+      <section class="cmds-pane">
+        <div class="cmds-title">Базовые команды</div>
+        <div class="cmds-grid">
+          <div class="cmds-item"><code>ls</code><span>список файлов</span></div>
+          <div class="cmds-item"><code>cd</code><span>сменить каталог</span></div>
+          <div class="cmds-item"><code>pwd</code><span>текущий каталог</span></div>
+          <div class="cmds-item"><code>mkdir</code><span>создать каталог</span></div>
+          <div class="cmds-item"><code>touch</code><span>создать файл</span></div>
+          <div class="cmds-item"><code>cat</code><span>показать файл</span></div>
+          <div class="cmds-item"><code>rm</code><span>удалить файл</span></div>
+          <div class="cmds-item"><code>vim</code><span>открыть в vim</span></div>
+          <div class="cmds-item"><code>clear</code><span>очистить экран</span></div>
+          <div class="cmds-item"><code>help</code><span>все команды</span></div>
         </div>
-        <a
-          class="promo-btn"
-          href="https://gl.pivlab.dev/rnd/nvim-config"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+      </section>
+
+      <section class="promo-pane">
+        <div class="promo-title">PivLab Vim Config</div>
+        <button id="promo-install-line" class="promo-install-line" type="button" title="Скопировать команду установки">
+          <code id="promo-install-cmd"
+            >curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash</code
+          >
+          <span id="promo-copy-icon" class="promo-copy-icon">⧉</span>
+        </button>
+        <a class="promo-repo-btn" href="https://gl.pivlab.dev/rnd/nvim-config" target="_blank" rel="noopener noreferrer">
           Открыть репозиторий ↗
         </a>
-        <div class="promo-quickstart">
-          <span class="promo-quickstart-label">Быстрый старт</span>
-          <div class="promo-code-row">
-            <code id="promo-install-cmd"
-              >curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash</code
-            >
-            <button id="promo-copy-btn" class="promo-copy-btn" type="button" title="Скопировать команду">
-              ⧉
-            </button>
-          </div>
-        </div>
       </section>
     </div>
 

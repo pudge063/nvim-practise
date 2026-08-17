@@ -129,6 +129,9 @@ export class Terminal {
       if (result.action?.type === "meltdown") {
         this._startMeltdown();
       }
+      if (result.action?.type === "meltdown-image") {
+        this._startMeltdown({ skipErrors: true });
+      }
       if (result.action?.type === "reboot") {
         setTimeout(() => window.location.reload(), 500);
       }
@@ -201,14 +204,22 @@ export class Terminal {
     this._printLine(candidates.join("  "), "line-dir");
   }
 
-  // `rm -rf /` easter egg (see shell.js's looksLikeRmRfRoot). Deliberately
-  // never stops itself — "бесконечно" was the ask. A page reload is the
-  // only way out, which is the point: it's a fake, theatrical "meltdown",
-  // not a real error state anything needs to recover from gracefully.
-  _startMeltdown() {
-    if (this._meltdownInterval) return;
+  // `rm -rf /` and `sudo` easter egg (see shell.js's looksLikeRmRfRoot /
+  // the sudo branch). `rm -rf /` gets a 2s spray of fake fatal errors
+  // first (shake + red glow on the terminal pane) before the picture;
+  // `sudo` (skipErrors) cuts straight to it. Either way it ends the same:
+  // the picture, then an automatic reload — nothing here is meant to be
+  // dismissed or recovered from gracefully, the reload IS the recovery.
+  _startMeltdown({ skipErrors = false } = {}) {
+    if (this._meltdownInterval || this._meltdownImageShown) return;
     this.els.shellInput.disabled = true;
     this.els.terminalPane.classList.add("meltdown");
+
+    if (skipErrors) {
+      this._showMeltdownImage();
+      return;
+    }
+
     const devices = ["/dev/sda1", "/dev/nvme0n1", "/dev/loop0", "/dev/zram0", "/dev/null"];
     const messages = [
       () => `kernel panic: not syncing — VFS: unable to mount root fs on ${pick(devices)}`,
@@ -218,11 +229,20 @@ export class Terminal {
       () => `bash: /bin/bash: cannot execute binary file`,
       () => `rm: it's dangerous to go alone — take this: 🗡️`,
       () => `Watchdog CPU:${Math.floor(Math.random() * 8)}: hung task, blocked for more than 120 seconds`,
-      () => `vimquest: filesystem irrecoverably gone. reload the page.`,
+      () => `vimquest: filesystem irrecoverably gone.`,
     ];
     this._meltdownInterval = setInterval(() => {
       this._printLine(messages[Math.floor(Math.random() * messages.length)](), "line-error line-meltdown");
     }, 140);
+    setTimeout(() => this._showMeltdownImage(), 2000);
+  }
+
+  _showMeltdownImage() {
+    if (this._meltdownImageShown) return;
+    this._meltdownImageShown = true;
+    clearInterval(this._meltdownInterval);
+    this.els.meltdownOverlay?.classList.remove("hidden");
+    setTimeout(() => window.location.reload(), 3000);
   }
 
   // ---------- vim ----------
