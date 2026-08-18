@@ -1283,7 +1283,7 @@ textarea,
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fx-flashbang 2.5s ease-out forwards;
+  animation: fx-flashbang 1.5s ease-out forwards;
 }
 
 .meltdown-overlay.hidden {
