@@ -40,6 +40,30 @@ export class FileSystem {
     this.root = seedTree();
     this.cwd = "/home/user";
     this.prevCwd = "/home/user";
+    this.env = {
+      HOME: "/home/user",
+      USER: "user",
+      SHELL: "/bin/bash",
+      TERM: "xterm-256color",
+      LANG: "en_US.UTF-8",
+      HOSTNAME: "vimlab",
+      PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    };
+  }
+
+  // --- environment variables ---
+
+  // PWD/OLDPWD are always derived live from cwd/prevCwd rather than
+  // stored — a shell that let them go stale after `cd` would be a worse
+  // bug than not supporting `export PWD=...` at all.
+  getEnv(name) {
+    if (name === "PWD") return this.cwd;
+    if (name === "OLDPWD") return this.prevCwd;
+    return this.env[name];
+  }
+
+  listEnv() {
+    return { ...this.env, PWD: this.cwd, OLDPWD: this.prevCwd };
   }
 
   // --- path handling ---

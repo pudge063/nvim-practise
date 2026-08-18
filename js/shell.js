@@ -37,6 +37,10 @@ export const COMMAND_NAMES = [
   "man",
   "reboot",
   "help",
+  "env",
+  "printenv",
+  "export",
+  "unset",
 ];
 
 const HELP_TEXT = [
@@ -72,10 +76,16 @@ const HELP_TEXT = [
   "  man <command>    a one-line manual entry",
   "  reboot           reload the page",
   "  help             this message",
+  "  env              print all environment variables",
+  "  printenv [NAME]  print all, or one variable's value",
+  "  export NAME=val  set an environment variable",
+  "  unset NAME       remove an environment variable",
   "",
   "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
   "Tab completes commands and paths, like a real shell.",
   "Add --help (or -h) after any command for its manual entry.",
+  "$NAME / ${NAME} expand to an environment variable's value anywhere",
+  "in a command line; `NAME=value` on its own sets one.",
 ].join("\n");
 
 // Keyed by exact command name (not fuzzy-parsed out of HELP_TEXT) so
@@ -114,10 +124,40 @@ const MAN_TEXT = {
   man: "man <command> - show a one-line manual entry",
   reboot: "reboot - reload the page",
   help: "help - list all available commands",
+  env: "env - print all environment variables as NAME=value",
+  printenv: "printenv [NAME...] - print all variables, or just the named ones' values",
+  export: "export NAME=value - set an environment variable ($NAME expands it afterwards)",
+  unset: "unset NAME - remove an environment variable",
 };
 
 function tokenize(line) {
   return line.trim().split(/\s+/).filter(Boolean);
+}
+
+// `$NAME` and `${NAME}` expand to an environment variable's value
+// anywhere in the line — applied once, up front, before tokenizing, so
+// it works uniformly for command names, arguments, and redirect targets
+// alike. An undefined variable expands to "" (matches real shells); `$5`
+// or a bare trailing `$` isn't a valid name and is left untouched, same
+// as `$5` being a positional parameter rather than `$NAME` in a real
+// shell (we don't have positional parameters, so there's nothing to
+// substitute there anyway).
+function expandVars(text, fs) {
+  return text.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (_m, braced, bare) => {
+    const value = fs.getEnv(braced || bare);
+    return value !== undefined ? value : "";
+  });
+}
+
+const ASSIGN_RE = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
+
+// A line consisting only of `NAME=value` tokens (`FOO=bar`, or several
+// at once — `A=1 B=2`) sets those variables directly, same shorthand as
+// real bash's bare assignment (without the "run this one command with a
+// temporary override" form real bash also supports — out of scope for
+// this toy).
+function isAssignmentLine(tokens) {
+  return tokens.length > 0 && tokens.every((t) => ASSIGN_RE.test(t));
 }
 
 // Splits a `>`/`>>` redirect off the end of a token list, if present.
@@ -384,6 +424,44 @@ function executeCommand(fs, cmd, args, history) {
         return { lines: [out(entry)], action: null };
       }
 
+      case "env": {
+        const lines = Object.entries(fs.listEnv())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => out(`${k}=${v}`));
+        return { lines, action: null };
+      }
+
+      case "printenv": {
+        const entries = fs.listEnv();
+        if (args.length === 0) {
+          const lines = Object.entries(entries)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => out(`${k}=${v}`));
+          return { lines, action: null };
+        }
+        const lines = args.filter((name) => entries[name] !== undefined).map((name) => out(entries[name]));
+        return { lines, action: null };
+      }
+
+      case "export": {
+        if (args.length === 0) {
+          const lines = Object.entries(fs.listEnv())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => out(`declare -x ${k}="${v}"`));
+          return { lines, action: null };
+        }
+        for (const a of args) {
+          const m = a.match(ASSIGN_RE);
+          if (m) fs.env[m[1]] = m[2];
+        }
+        return { lines: [], action: null };
+      }
+
+      case "unset": {
+        for (const name of args) delete fs.env[name];
+        return { lines: [], action: null };
+      }
+
       case "ls": {
         const { long, all, path } = parseLsFlags(args);
         const target = path ?? fs.cwd;
@@ -569,11 +647,22 @@ function executeCommand(fs, cmd, args, history) {
 // looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
 // error phase, straight to the picture).
 export function runCommand(fs, rawLine, { history } = {}) {
-  const line = rawLine.trim();
+  // Expanded once, up front, so $NAME/${NAME} works uniformly in the
+  // command name, any argument, or a redirect target — everything below
+  // just sees the already-substituted text.
+  const line = expandVars(rawLine.trim(), fs);
   if (!line) return { lines: [], action: null };
 
   const rawTokens = tokenize(line);
   const out = (text, cls = "") => ({ text, cls });
+
+  if (isAssignmentLine(rawTokens)) {
+    for (const t of rawTokens) {
+      const m = t.match(ASSIGN_RE);
+      fs.env[m[1]] = m[2];
+    }
+    return { lines: [], action: null };
+  }
 
   if (rawTokens[0] === "rm" && looksLikeRmRfRoot(fs, rawTokens.slice(1))) {
     return {
