@@ -372,7 +372,7 @@ export class Terminal {
     // .meltdown-overlay img's fx-img-reveal) — the impact hit lands
     // right there, not after the flash sound has mostly finished.
     setTimeout(() => this._playSound(this._impactAudio), 150);
-    setTimeout(() => window.location.reload(), 1500);
+    setTimeout(() => window.location.reload(), 1000);
   }
 
   // `top` — a live-updating view that takes over the terminal display
