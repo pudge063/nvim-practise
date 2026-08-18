@@ -292,6 +292,7 @@ textarea,
 
 /* ---------- shell ---------- */
 .shell-view {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -615,14 +616,122 @@ textarea,
 }
 
 .tasks-header h2 {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 1rem;
+  font-family: var(--mono);
+}
+
+/* ---------- mode switch: tutorial vs. tasks ---------- */
+.mode-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fg-dim);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.mode-tab:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+.mode-tab.active {
+  background: rgba(125, 211, 252, 0.14);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mode-panel.hidden {
+  display: none;
+}
+
+.tutorial-intro {
+  margin: 12px 12px 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(196, 181, 253, 0.08);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.tutorial-steps {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tutorial-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--fg-faint);
+  font-size: 0.84rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tutorial-step-marker {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.tutorial-step.active {
+  color: var(--fg);
+  background: rgba(125, 211, 252, 0.1);
+}
+
+.tutorial-step.active .tutorial-step-marker {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: fx-tile-glow 1.8s ease-in-out infinite;
+}
+
+.tutorial-step.done {
+  color: var(--fg-dim);
+}
+
+.tutorial-step.done .tutorial-step-marker {
+  background: var(--accent-3);
+  border-color: var(--accent-3);
+  color: #0b0e17;
+}
+
+#tutorial-status {
+  margin: 8px 12px 14px;
 }
 
 .progress-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  padding: 12px 18px 0;
 }
 
 .progress-summary {

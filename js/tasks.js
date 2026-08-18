@@ -606,6 +606,7 @@ export class TaskManager {
       this._renderProgress();
       this._celebrate(stars);
       this.terminal.hideInlineHint?.();
+      this._advanceToNextTask(task.id);
       return;
     }
     if (!ok) this._maybeShowInlineHint(task, state);
@@ -624,6 +625,19 @@ export class TaskManager {
     const anchor = this._statusEl || this.els.taskDetail;
     burstStars(anchor, 10 + stars * 4);
     pulse(this._statusEl);
+  }
+
+  // A short pause so the star burst/pulse from _celebrate actually reads
+  // as a reward for *this* task before the screen changes out from under
+  // it — jumping instantly would make the celebration invisible.
+  _advanceToNextTask(justCompletedId) {
+    const idx = TASKS.findIndex((t) => t.id === justCompletedId);
+    const next = TASKS[idx + 1];
+    if (!next) return; // last task — nothing to advance to
+    clearTimeout(this._advanceTimeout);
+    this._advanceTimeout = setTimeout(() => {
+      if (this.activeTaskId === justCompletedId) this.openTask(next.id);
+    }, 1400);
   }
 
   _renderList() {

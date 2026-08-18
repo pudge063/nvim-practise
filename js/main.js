@@ -1,6 +1,7 @@
 import { FileSystem } from "./filesystem.js";
 import { Terminal } from "./terminal.js";
 import { TaskManager } from "./tasks.js";
+import { TutorialManager } from "./tutorial.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -13,6 +14,9 @@ const els = {
   terminalOutput: $("terminal-output"),
   promptText: $("prompt-text"),
   shellInput: $("shell-input"),
+  shellHintPopup: $("shell-hint-popup"),
+  shellHintText: $("shell-hint-text"),
+  shellHintClose: $("shell-hint-close"),
   vimView: $("vim-view"),
   vimBuffer: $("vim-buffer"),
   vimCmdline: $("vim-cmdline"),
@@ -31,18 +35,61 @@ const els = {
   progressStars: $("progress-stars"),
   freeplayBtn: $("freeplay-btn"),
   meltdownOverlay: $("meltdown-overlay"),
+  tutorialSteps: $("tutorial-steps"),
+  tutorialStatus: $("tutorial-status"),
 };
 
 const fs = new FileSystem();
 let taskManager;
+let tutorialManager;
+// "tutorial" is the default the instant the page loads (per the product
+// ask: onboarding starts automatically, not behind an extra click) — the
+// mode-tab pair below just lets the learner switch to the challenge set
+// whenever they want, in either direction.
+let mode = "tutorial";
 
 const terminal = new Terminal({
   fs,
   els,
-  onVimKeystroke: (state) => taskManager?.onVimKeystroke(state),
+  onVimKeystroke: (state) => {
+    if (mode === "tutorial") tutorialManager?.onVimKeystroke(state);
+    else taskManager?.onVimKeystroke(state);
+  },
+  onShellCommand: (cmd, result) => {
+    if (mode === "tutorial") tutorialManager?.onShellCommand(cmd, result);
+  },
+  onVimExit: () => {
+    if (mode === "tutorial") tutorialManager?.onVimExit();
+  },
 });
 
 taskManager = new TaskManager({ fs, terminal, els });
+tutorialManager = new TutorialManager({ fs, terminal, els });
+
+// ---------- mode switch (tutorial vs. tasks) ----------
+
+const modeTutorialTab = $("mode-tutorial-tab");
+const modeTasksTab = $("mode-tasks-tab");
+const tutorialPanel = $("tutorial-panel");
+const tasksPanel = $("tasks-panel");
+
+function setMode(next) {
+  mode = next;
+  modeTutorialTab.classList.toggle("active", mode === "tutorial");
+  modeTasksTab.classList.toggle("active", mode === "tasks");
+  tutorialPanel.classList.toggle("hidden", mode !== "tutorial");
+  tasksPanel.classList.toggle("hidden", mode !== "tasks");
+  // Switching away from whichever mode was mid-lesson/mid-task in vim
+  // shouldn't leave its popup lingering over the other mode's UI.
+  terminal.hideInlineHint();
+  terminal.hideShellHint();
+}
+
+modeTutorialTab.addEventListener("click", () => setMode("tutorial"));
+modeTasksTab.addEventListener("click", () => setMode("tasks"));
+
+setMode("tutorial");
+tutorialManager.start();
 
 // Quickstart copy button — page-level chrome, doesn't belong to any
 // module above (not shell/vim/task state). The whole install-command

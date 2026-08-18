@@ -37,6 +37,11 @@
         <div class="window-body">
           <!-- shell view -->
           <div id="shell-view" class="shell-view">
+            <div id="shell-hint-popup" class="vim-hint-popup hidden">
+              <span class="vim-hint-icon">💡</span>
+              <span id="shell-hint-text"></span>
+              <button id="shell-hint-close" class="vim-hint-close" type="button" title="Скрыть">×</button>
+            </div>
             <div id="terminal-output" class="terminal-output" tabindex="-1"></div>
             <div class="terminal-inputline">
               <span class="prompt" id="prompt-text">user@vimquest:~$</span>
@@ -94,22 +99,39 @@
 
     <aside class="tasks-pane">
       <div class="tasks-header">
-        <h2>Задания</h2>
+        <h2>vimquest</h2>
+      </div>
+
+      <div class="mode-tabs">
+        <button id="mode-tutorial-tab" class="mode-tab" type="button">📘 Обучение</button>
+        <button id="mode-tasks-tab" class="mode-tab" type="button">🎯 Задания</button>
+      </div>
+
+      <div id="tutorial-panel" class="mode-panel">
+        <p class="tutorial-intro">
+          Пошаговое обучение прямо в терминале — подсказки появляются
+          сами, просто делайте то, что в них написано.
+        </p>
+        <ol id="tutorial-steps" class="tutorial-steps"></ol>
+        <div id="tutorial-status" class="task-status status-pending"></div>
+      </div>
+
+      <div id="tasks-panel" class="mode-panel hidden">
         <div class="progress-row">
           <div id="progress-summary" class="progress-summary">0 / 0 выполнено</div>
           <span id="progress-stars" class="progress-stars"></span>
         </div>
-      </div>
 
-      <button id="freeplay-btn" class="freeplay-btn" type="button">🧪 Свободный режим — без заданий</button>
+        <button id="freeplay-btn" class="freeplay-btn" type="button">🧪 Свободный режим — без заданий</button>
 
-      <div id="tasks-list" class="tasks-list"></div>
+        <div id="tasks-list" class="tasks-list"></div>
 
-      <div id="task-detail" class="task-detail">
-        <p class="task-detail-empty">
-          Выберите задание слева, либо нажмите «Свободный режим» выше —
-          там можно делать что угодно, без проверок и подсказок.
-        </p>
+        <div id="task-detail" class="task-detail">
+          <p class="task-detail-empty">
+            Выберите задание слева, либо нажмите «Свободный режим» выше —
+            там можно делать что угодно, без проверок и подсказок.
+          </p>
+        </div>
       </div>
     </aside>
   </main>

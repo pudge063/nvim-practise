@@ -32,14 +32,27 @@ const MODE_LABEL = {
 };
 
 export class Terminal {
-  constructor({ fs, els, onVimKeystroke }) {
+  constructor({ fs, els, onVimKeystroke, onShellCommand, onVimExit }) {
     this.fs = fs;
     this.els = els;
     this.onVimKeystroke = onVimKeystroke || (() => {});
+    this.onShellCommand = onShellCommand || (() => {});
+    this.onVimExit = onVimExit || (() => {});
     this.history = [];
     this.historyIndex = 0;
     this.engine = null;
     this.vimPath = null;
+
+    // Preloaded once at startup and reused (currentTime reset + replay)
+    // rather than `new Audio()` at trigger time — on some platforms
+    // (reported on macOS) the very first decode of a never-touched audio
+    // file is slow enough that the picture visibly appears before the
+    // flashbang sound starts. Loading (not playing) up front needs no
+    // user gesture, so this is safe to do immediately on construction.
+    this._flashbangAudio = new Audio("img/flashbang.mp3");
+    this._flashbangAudio.preload = "auto";
+    this._impactAudio = new Audio("img/pum-impacto.mp3");
+    this._impactAudio.preload = "auto";
 
     this._printLine("Welcome to vimquest. Type help for a list of commands.", "line-hint");
     this._updatePrompt();
@@ -47,24 +60,41 @@ export class Terminal {
     this.els.vimView.addEventListener("keydown", (e) => this._onVimKeydown(e));
     this.els.terminalPane.addEventListener("click", () => this._focusActive());
     this.els.vimHintClose?.addEventListener("click", () => this.hideInlineHint());
+    this.els.shellHintClose?.addEventListener("click", () => this.hideShellHint());
     this._focusActive();
   }
 
-  // Contextual "you look stuck" popup shown inside the vim view itself
-  // (as opposed to the always-available manual hint button in the tasks
-  // panel) — see tasks.js's _maybeShowInlineHint for the trigger
-  // condition (2+ keystrokes past a task's par, re-shown periodically).
-  showInlineHint(html) {
+  // Contextual popup shown inside the vim view itself. Two callers, two
+  // lifetimes: tasks.js's "you look stuck" nudge (auto-hides after 8s,
+  // the default) and tutorial.js's step coaching (persistent — stays up
+  // until the step is actually done, since it's not a nudge, it's the
+  // instruction).
+  showInlineHint(html, { persistent = false } = {}) {
     if (!this.els.vimHintPopup) return;
     this.els.vimHintText.innerHTML = html;
     this.els.vimHintPopup.classList.remove("hidden");
     clearTimeout(this._hintTimeout);
-    this._hintTimeout = setTimeout(() => this.hideInlineHint(), 8000);
+    if (!persistent) this._hintTimeout = setTimeout(() => this.hideInlineHint(), 8000);
   }
 
   hideInlineHint() {
     this.els.vimHintPopup?.classList.add("hidden");
     clearTimeout(this._hintTimeout);
+  }
+
+  // Same idea, for the shell view — used by tutorial.js's first step
+  // ("open vim") since that happens before any vim engine exists.
+  showShellHint(html, { persistent = false } = {}) {
+    if (!this.els.shellHintPopup) return;
+    this.els.shellHintText.innerHTML = html;
+    this.els.shellHintPopup.classList.remove("hidden");
+    clearTimeout(this._shellHintTimeout);
+    if (!persistent) this._shellHintTimeout = setTimeout(() => this.hideShellHint(), 8000);
+  }
+
+  hideShellHint() {
+    this.els.shellHintPopup?.classList.add("hidden");
+    clearTimeout(this._shellHintTimeout);
   }
 
   _focusActive() {
@@ -138,6 +168,10 @@ export class Terminal {
       if (result.action?.type === "reboot") {
         setTimeout(() => window.location.reload(), 500);
       }
+      // Fired last, once any of the branches above (e.g. enterVim) have
+      // already run — a listener reacting to "vim was opened" needs
+      // `this.engine` to actually exist by the time it's notified.
+      this.onShellCommand(cmd, result);
       return;
     }
     if (e.key === "ArrowUp") {
@@ -240,12 +274,13 @@ export class Terminal {
     setTimeout(() => this._showMeltdownImage(), 1000);
   }
 
-  _playSound(src) {
+  _playSound(audio) {
     // Best-effort: browsers that block unprompted audio (rare, given the
     // user already typed a command to get here) just get it silent —
     // never let this throw and skip the reload below.
     try {
-      new Audio(src).play().catch(() => {});
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     } catch {
       /* ignore */
     }
@@ -256,11 +291,11 @@ export class Terminal {
     this._meltdownImageShown = true;
     clearInterval(this._meltdownInterval);
     this.els.meltdownOverlay?.classList.remove("hidden");
-    this._playSound("img/flashbang.mp3");
+    this._playSound(this._flashbangAudio);
     // The picture itself is essentially fully visible by ~0.3s (see
     // .meltdown-overlay img's fx-img-reveal) — the impact hit lands
     // right there, not after the flash sound has mostly finished.
-    setTimeout(() => this._playSound("img/pum-impacto.mp3"), 150);
+    setTimeout(() => this._playSound(this._impactAudio), 150);
     // 0.15s until impact + ~3.2s for that sound to finish + a beat to
     // actually look at the picture before reload.
     setTimeout(() => window.location.reload(), 4200);
@@ -293,6 +328,11 @@ export class Terminal {
 
   exitVim() {
     this.hideInlineHint();
+    // Only a real vim session leaving counts — exitVim() is also how the
+    // directory browser (a different mode entirely, see below) returns
+    // to the shell on q/Escape, which listeners like tutorial.js's
+    // "save and quit" step must not mistake for :wq.
+    const wasRealVim = !!this.engine;
     this.engine = null;
     this.vimPath = null;
     this.browserPath = null;
@@ -300,6 +340,7 @@ export class Terminal {
     this.els.shellView.classList.remove("hidden");
     this._updatePrompt();
     this.els.shellInput.focus();
+    if (wasRealVim) this.onVimExit();
   }
 
   // ---------- directory browser (vim/vi with no file — see shell.js's
