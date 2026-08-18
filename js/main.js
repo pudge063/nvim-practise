@@ -92,6 +92,9 @@ function setMode(next) {
   // first time its tab is opened — not on page load, and not again on
   // a later revisit (that would wipe mid-lesson progress).
   if (mode === "tutorial" && !tutorialManager.started) tutorialManager.start();
+  // Picking a mode should drop the learner straight into typing, not
+  // leave keyboard focus stranded on the tab button they just clicked.
+  if (mode !== null) terminal.focusInput();
 }
 
 modeTutorialTab.addEventListener("click", () => setMode("tutorial"));

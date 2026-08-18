@@ -160,6 +160,15 @@ export class Terminal {
     }
   }
 
+  // Public: focus whichever view is currently interactive (shell input,
+  // vim, or the live `top` display). Used by main.js's mode tabs so
+  // picking "Обучение"/"Задания" drops the learner straight into typing
+  // instead of leaving keyboard focus stranded on the tab button they
+  // just clicked.
+  focusInput() {
+    this._focusActive();
+  }
+
   // ---------- shell ----------
 
   _updatePrompt() {
