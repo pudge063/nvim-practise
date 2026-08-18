@@ -90,7 +90,7 @@ const HELP_TEXT = [
   "  ip a             list network interfaces",
   "",
   "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
-  "Tab completes commands and paths, like a real shell.",
+  "Tab completes commands, paths, and $NAME/${NAME} variables.",
   "Add --help (or -h) after any command for its manual entry.",
   "$NAME / ${NAME} expand to an environment variable's value anywhere",
   "in a command line; `NAME=value` on its own sets one.",

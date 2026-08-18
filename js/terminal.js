@@ -256,10 +256,14 @@ export class Terminal {
 
   // Real-terminal-style completion: first word completes against known
   // commands, anything after completes against files/dirs in the target
-  // directory. One match completes it outright; several complete to their
-  // longest common prefix and, if that doesn't advance anything, print
-  // the candidate list (bash's classic double-Tab behavior, collapsed to
-  // a single Tab here since there's no separate "did nothing" signal to
+  // directory — unless the token ends in an in-progress `$NAME` or
+  // `${NAME`, which completes against environment variable names instead
+  // (`echo $U<Tab>` -> `echo $USER`, `${HOM<Tab>` -> `${HOME}` — closing
+  // the brace is part of completing a braced reference, same as bash).
+  // One match completes it outright; several complete to their longest
+  // common prefix and, if that doesn't advance anything, print the
+  // candidate list (bash's classic double-Tab behavior, collapsed to a
+  // single Tab here since there's no separate "did nothing" signal to
   // wait on).
   _completeShellInput() {
     const value = this.els.shellInput.value;
@@ -267,9 +271,24 @@ export class Terminal {
     const partial = parts[parts.length - 1];
     const isCommandPos = parts.length === 1;
 
+    // Matches a `$` (optionally `${`) followed by whatever identifier
+    // characters have been typed so far, anchored to the end of the
+    // token — so "cat $HOME/x$FO" completes against "FO", not "HOME/x".
+    const varMatch = partial.match(/\$(\{)?([A-Za-z_][A-Za-z0-9_]*)?$/);
+
     let candidates;
-    if (isCommandPos) {
+    let addTrailingSpace = false;
+    if (varMatch) {
+      const braced = !!varMatch[1];
+      const namePartial = varMatch[2] || "";
+      const prefix = partial.slice(0, varMatch.index) + "$" + (braced ? "{" : "");
+      candidates = Object.keys(this.fs.listEnv())
+        .filter((name) => name.startsWith(namePartial))
+        .sort()
+        .map((name) => prefix + name + (braced ? "}" : ""));
+    } else if (isCommandPos) {
       candidates = COMMAND_NAMES.filter((c) => c.startsWith(partial));
+      addTrailingSpace = true;
     } else {
       const slash = partial.lastIndexOf("/");
       const dirPath = slash === -1 ? this.fs.cwd : partial.slice(0, slash) || "/";
@@ -289,7 +308,7 @@ export class Terminal {
     if (candidates.length === 0) return;
     if (candidates.length === 1) {
       parts[parts.length - 1] = candidates[0];
-      this.els.shellInput.value = parts.join(" ") + (isCommandPos ? " " : "");
+      this.els.shellInput.value = parts.join(" ") + (addTrailingSpace ? " " : "");
       return;
     }
     const lcp = longestCommonPrefix(candidates);
