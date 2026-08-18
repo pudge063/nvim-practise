@@ -90,6 +90,7 @@ export class Terminal {
     // user gesture, so this is safe to do immediately on construction.
     this._flashbangAudio = new Audio("img/flashbang.mp3");
     this._flashbangAudio.preload = "auto";
+    this._flashbangAudio.volume = 1.0;
     this._impactAudio = new Audio("img/pum-impacto.mp3");
     this._impactAudio.preload = "auto";
 
@@ -371,9 +372,7 @@ export class Terminal {
     // .meltdown-overlay img's fx-img-reveal) — the impact hit lands
     // right there, not after the flash sound has mostly finished.
     setTimeout(() => this._playSound(this._impactAudio), 150);
-    // 0.15s until impact + ~3.2s for that sound to finish + a beat to
-    // actually look at the picture before reload.
-    setTimeout(() => window.location.reload(), 4200);
+    setTimeout(() => window.location.reload(), 2500);
   }
 
   // `top` — a live-updating view that takes over the terminal display
