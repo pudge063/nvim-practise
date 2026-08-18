@@ -92,10 +92,8 @@
         </div>
       </section>
 
-      <div class="rmrf-warnings">
-        <div class="rmrf-warning">⚠️ please dont execute 'rm -rf /' in terminal!</div>
-        <div class="rmrf-warning">⚠️ please dont execute 'sudo' in terminal!</div>
-      </div>
+      <div class="rmrf-warning">please dont execute 'rm -rf /' in terminal!</div>
+      <div class="rmrf-warning">please dont execute 'sudo' in terminal!</div>
 
       <section class="cmds-pane">
         <div class="cmds-title">Базовые команды</div>
@@ -126,12 +124,8 @@
       </div>
 
       <div class="mode-tabs">
-        <button id="mode-tutorial-tab" class="mode-tab" type="button">
-          <span class="mode-tab-icon">📘</span>Обучение
-        </button>
-        <button id="mode-tasks-tab" class="mode-tab" type="button">
-          <span class="mode-tab-icon">🎯</span>Задания
-        </button>
+        <button id="mode-tutorial-tab" class="mode-tab" type="button">Обучение</button>
+        <button id="mode-tasks-tab" class="mode-tab" type="button">Задания</button>
       </div>
 
       <div id="welcome-panel" class="mode-panel">
@@ -188,6 +182,9 @@
 
   <footer class="site-footer">
     <span>Наберите <code>help</code> в терминале, чтобы увидеть список команд.</span>
+    <span class="site-footer-credit">
+      maintained by Arsenii Nikulin, <a href="https://pivlab.dev" target="_blank" rel="noopener noreferrer">PivLab DEV</a>
+    </span>
   </footer>
 
   <script type="module" src="js/main.js"></script>

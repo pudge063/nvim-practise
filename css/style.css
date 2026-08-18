@@ -17,7 +17,18 @@
   --accent-bad: #fb7185;
 
   --mono: "SF Mono", "Fira Code", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* A deliberately small, consistent type scale — used across the
+     tasks/task-detail panels and headings instead of ad-hoc rem values,
+     so text sizing reads as a considered system rather than whatever
+     felt right in each rule. */
+  --fs-2xs: 0.72rem;
+  --fs-xs: 0.79rem;
+  --fs-sm: 0.86rem;
+  --fs-base: 0.93rem;
+  --fs-md: 1.05rem;
+  --fs-lg: 1.4rem;
 
   --radius-lg: 18px;
   --radius-md: 10px;
@@ -37,11 +48,19 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
   color: var(--fg);
   background: var(--bg-deep);
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  /* Crisper, more deliberate text rendering — the difference between
+     "system default" and "someone tuned this" is mostly here. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01", "tnum";
   /* This reads as an app/game, not a document — no drag-to-select
      smears across the terminal/task tiles. Inputs opt back in below so
      typing/selecting what you typed still works normally. */
@@ -145,14 +164,35 @@ textarea,
 }
 
 .site-footer {
-  padding: 10px clamp(16px, 4vw, 48px) 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px clamp(16px, 4vw, 48px) 24px;
   color: var(--fg-faint);
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   text-align: center;
 }
 
 .site-footer code {
   color: var(--fg-dim);
+}
+
+.site-footer-credit {
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
+  opacity: 0.75;
+}
+
+.site-footer-credit a {
+  color: var(--fg-dim);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-strong);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.site-footer-credit a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ---------- workspace layout ---------- */
@@ -610,7 +650,7 @@ textarea,
   display: flex;
   flex-direction: column;
   flex: none;
-  width: 360px;
+  width: 430px;
   max-width: 100%;
   /* Glossy black lacquer, not the same translucent blue-glass as the
      terminal/cheat-sheet — a diagonal near-black gradient with a soft
@@ -639,22 +679,24 @@ textarea,
 }
 
 .tasks-header {
-  padding: 16px 18px 12px;
+  padding: 18px 22px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .tasks-header h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--fs-md);
+  font-weight: 600;
   font-family: var(--mono);
+  letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.88);
 }
 
 /* ---------- mode switch: tutorial vs. tasks ---------- */
 .mode-tabs {
   display: flex;
-  gap: 8px;
-  padding: 16px 16px 12px;
+  gap: 10px;
+  padding: 18px 20px 14px;
 }
 
 .mode-tab {
@@ -663,22 +705,18 @@ textarea,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px 14px;
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
   background: rgba(255, 255, 255, 0.03);
   color: var(--fg-dim);
   font-family: var(--sans);
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
+  letter-spacing: 0.005em;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.15s ease,
     box-shadow 0.18s ease;
-}
-
-.mode-tab-icon {
-  font-size: 1.05rem;
-  line-height: 1;
 }
 
 /* Whichever tab ISN'T the current mode keeps a slow "you can click me"
@@ -721,20 +759,20 @@ textarea,
 }
 
 .tutorial-intro {
-  margin: 14px 16px 4px;
-  padding: 12px 14px;
+  margin: 16px 20px 4px;
+  padding: 13px 16px;
   border-radius: var(--radius-md);
   background: rgba(196, 181, 253, 0.08);
   border: 1px solid rgba(196, 181, 253, 0.2);
   color: var(--fg-dim);
-  font-size: 0.84rem;
-  line-height: 1.6;
+  font-size: var(--fs-base);
+  line-height: 1.62;
 }
 
 .tutorial-steps {
   list-style: none;
   margin: 0;
-  padding: 10px 14px;
+  padding: 10px 16px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -744,10 +782,10 @@ textarea,
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-radius: var(--radius-md);
   color: var(--fg-faint);
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -761,7 +799,7 @@ textarea,
   border-radius: 50%;
   border: 1.5px solid var(--border-strong);
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-2xs);
 }
 
 .tutorial-step.active {
@@ -786,29 +824,29 @@ textarea,
 }
 
 #tutorial-status {
-  margin: 8px 16px 16px;
+  margin: 8px 20px 18px;
 }
 
 .progress-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 14px 18px 0;
+  padding: 16px 22px 0;
 }
 
 .progress-summary {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
 }
 
 .tasks-list {
-  padding: 10px;
+  padding: 12px 14px;
 }
 
 .task-category {
-  padding: 12px 8px 4px;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  padding: 14px 8px 5px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--fg-faint);
   font-weight: 700;
@@ -816,9 +854,9 @@ textarea,
 
 .task-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
-  gap: 7px;
-  padding: 2px 8px 10px;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 8px;
+  padding: 2px 6px 12px;
 }
 
 .task-tile {
@@ -831,7 +869,7 @@ textarea,
   background: rgba(255, 255, 255, 0.03);
   color: var(--fg-dim);
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -881,7 +919,7 @@ textarea,
    it, so picking a task reads as "the terminal just gained a caption",
    not as a stray fragment of the sidebar's own look. */
 .task-detail-pane {
-  padding: 18px 20px 20px;
+  padding: 22px 26px 24px;
   background: var(--bg-panel);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
@@ -897,7 +935,7 @@ textarea,
 
 .task-detail-empty {
   color: var(--fg-dim);
-  font-size: 0.85rem;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -907,20 +945,23 @@ textarea,
 
 .task-detail h3 {
   margin: 0 0 8px;
-  font-size: 1rem;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 .task-detail .task-meta {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.01em;
   color: var(--fg-faint);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .task-detail .task-desc {
-  font-size: 0.88rem;
-  line-height: 1.6;
+  font-size: var(--fs-base);
+  line-height: 1.65;
   color: var(--fg);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .task-detail code {
@@ -936,13 +977,13 @@ textarea,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.04);
   color: var(--fg);
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -958,13 +999,13 @@ textarea,
 
 .hint-box {
   margin-top: 10px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-radius: var(--radius-md);
   background: rgba(252, 211, 77, 0.09);
   border: 1px solid rgba(252, 211, 77, 0.25);
   color: var(--fg);
-  font-size: 0.84rem;
-  line-height: 1.55;
+  font-size: var(--fs-sm);
+  line-height: 1.58;
 }
 
 .hint-box.hidden {
@@ -973,9 +1014,9 @@ textarea,
 
 .task-status {
   margin-top: 14px;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: var(--radius-md);
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -992,13 +1033,13 @@ textarea,
 .reopen-btn {
   margin-top: 10px;
   display: inline-flex;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.04);
   color: var(--fg);
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -1015,18 +1056,12 @@ textarea,
   display: none !important;
 }
 
-.rmrf-warnings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .rmrf-warning {
-  flex: 1 1 220px;
   text-align: center;
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--accent-bad);
   padding: 8px 14px;
   border: 1.5px solid var(--accent-bad);
@@ -1050,8 +1085,10 @@ textarea,
 }
 
 .cmds-title {
+  text-align: center;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
   color: var(--fg-dim);
 }
 
@@ -1065,7 +1102,7 @@ textarea,
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }
 
 .cmds-item code {
@@ -1182,15 +1219,15 @@ textarea,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: calc(100% - 20px);
-  margin: 10px;
-  padding: 12px;
+  width: calc(100% - 28px);
+  margin: 12px 14px;
+  padding: 13px;
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-strong);
   background: linear-gradient(135deg, rgba(125, 211, 252, 0.1), rgba(196, 181, 253, 0.1));
   color: var(--fg);
   font-family: var(--sans);
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -1212,13 +1249,13 @@ textarea,
 
 .freeplay-banner {
   margin-bottom: 14px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   background: rgba(134, 239, 172, 0.1);
   border: 1px solid rgba(134, 239, 172, 0.25);
   color: var(--fg);
-  font-size: 0.84rem;
-  line-height: 1.55;
+  font-size: var(--fs-base);
+  line-height: 1.58;
 }
 
 /* ---------- stars ---------- */
