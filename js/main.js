@@ -42,18 +42,19 @@ const els = {
 const fs = new FileSystem();
 let taskManager;
 let tutorialManager;
-// "tutorial" is the default the instant the page loads (per the product
-// ask: onboarding starts automatically, not behind an extra click) — the
-// mode-tab pair below just lets the learner switch to the challenge set
-// whenever they want, in either direction.
-let mode = "tutorial";
+// The page opens on a plain, unmonitored terminal — "free mode" in
+// effect, just without needing tasks.js's own freeplay button for it.
+// Neither manager's callbacks fire until the learner actually picks a
+// mode tab; the tabs themselves (see the always-on glow on whichever
+// isn't active, in style.css) are the only thing inviting that click.
+let mode = null;
 
 const terminal = new Terminal({
   fs,
   els,
   onVimKeystroke: (state) => {
     if (mode === "tutorial") tutorialManager?.onVimKeystroke(state);
-    else taskManager?.onVimKeystroke(state);
+    else if (mode === "tasks") taskManager?.onVimKeystroke(state);
   },
   onShellCommand: (cmd, result) => {
     if (mode === "tutorial") tutorialManager?.onShellCommand(cmd, result);
@@ -66,10 +67,11 @@ const terminal = new Terminal({
 taskManager = new TaskManager({ fs, terminal, els });
 tutorialManager = new TutorialManager({ fs, terminal, els });
 
-// ---------- mode switch (tutorial vs. tasks) ----------
+// ---------- mode switch (tutorial vs. tasks vs. the free-by-default page) ----------
 
 const modeTutorialTab = $("mode-tutorial-tab");
 const modeTasksTab = $("mode-tasks-tab");
+const welcomePanel = $("welcome-panel");
 const tutorialPanel = $("tutorial-panel");
 const tasksPanel = $("tasks-panel");
 
@@ -77,19 +79,21 @@ function setMode(next) {
   mode = next;
   modeTutorialTab.classList.toggle("active", mode === "tutorial");
   modeTasksTab.classList.toggle("active", mode === "tasks");
+  welcomePanel.classList.toggle("hidden", mode !== null);
   tutorialPanel.classList.toggle("hidden", mode !== "tutorial");
   tasksPanel.classList.toggle("hidden", mode !== "tasks");
   // Switching away from whichever mode was mid-lesson/mid-task in vim
   // shouldn't leave its popup lingering over the other mode's UI.
   terminal.hideInlineHint();
   terminal.hideShellHint();
+  // Tutorial only actually seeds its file / shows its first hint the
+  // first time its tab is opened — not on page load, and not again on
+  // a later revisit (that would wipe mid-lesson progress).
+  if (mode === "tutorial" && !tutorialManager.started) tutorialManager.start();
 }
 
 modeTutorialTab.addEventListener("click", () => setMode("tutorial"));
 modeTasksTab.addEventListener("click", () => setMode("tasks"));
-
-setMode("tutorial");
-tutorialManager.start();
 
 // Quickstart copy button — page-level chrome, doesn't belong to any
 // module above (not shell/vim/task state). The whole install-command

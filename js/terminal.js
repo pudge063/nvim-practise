@@ -54,7 +54,7 @@ export class Terminal {
     this._impactAudio = new Audio("img/pum-impacto.mp3");
     this._impactAudio.preload = "auto";
 
-    this._printLine("Welcome to vimquest. Type help for a list of commands.", "line-hint");
+    this._printLine("Welcome to vimlab. Type help for a list of commands.", "line-hint");
     this._updatePrompt();
     this.els.shellInput.addEventListener("keydown", (e) => this._onShellKeydown(e));
     this.els.vimView.addEventListener("keydown", (e) => this._onVimKeydown(e));
@@ -108,7 +108,7 @@ export class Terminal {
   // ---------- shell ----------
 
   _updatePrompt() {
-    this.els.promptText.textContent = `user@vimquest:${this.fs.displayPath()}$`;
+    this.els.promptText.textContent = `user@vimlab:${this.fs.displayPath()}$`;
     this.els.windowTitle.textContent = `bash — ${this.fs.displayPath()}`;
   }
 
@@ -130,7 +130,7 @@ export class Terminal {
     div.className = "line line-cmd";
     const promptSpan = document.createElement("span");
     promptSpan.className = "cmd-prompt";
-    promptSpan.textContent = `user@vimquest:${this.fs.displayPath()}$`;
+    promptSpan.textContent = `user@vimlab:${this.fs.displayPath()}$`;
     div.appendChild(promptSpan);
     div.appendChild(document.createTextNode(cmd));
     this.els.terminalOutput.appendChild(div);
@@ -146,7 +146,7 @@ export class Terminal {
         this.history.push(cmd);
         this.historyIndex = this.history.length;
       }
-      const result = runCommand(this.fs, cmd);
+      const result = runCommand(this.fs, cmd, { history: this.history });
       if (result.action?.type === "clear") {
         this.els.terminalOutput.innerHTML = "";
       } else {
@@ -266,7 +266,7 @@ export class Terminal {
       () => `bash: /bin/bash: cannot execute binary file`,
       () => `rm: it's dangerous to go alone — take this: 🗡️`,
       () => `Watchdog CPU:${Math.floor(Math.random() * 8)}: hung task, blocked for more than 120 seconds`,
-      () => `vimquest: filesystem irrecoverably gone.`,
+      () => `vimlab: filesystem irrecoverably gone.`,
     ];
     this._meltdownInterval = setInterval(() => {
       this._printLine(messages[Math.floor(Math.random() * messages.length)](), "line-error line-meltdown");

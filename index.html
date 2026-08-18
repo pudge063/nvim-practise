@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>vimquest — учи vim в браузере</title>
+  <title>vimlab</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -21,7 +21,7 @@
   </div>
 
   <header class="site-header">
-    <span class="logo">vim<span class="logo-accent">quest</span></span>
+    <span class="logo">vim<span class="logo-accent">lab</span></span>
   </header>
 
   <main class="workspace">
@@ -44,7 +44,7 @@
             </div>
             <div id="terminal-output" class="terminal-output" tabindex="-1"></div>
             <div class="terminal-inputline">
-              <span class="prompt" id="prompt-text">user@vimquest:~$</span>
+              <span class="prompt" id="prompt-text">user@vimlab:~$</span>
               <input
                 id="shell-input"
                 class="shell-input"
@@ -91,6 +91,9 @@
           <div class="cmds-item"><code>cat</code><span>показать файл</span></div>
           <div class="cmds-item"><code>rm</code><span>удалить файл</span></div>
           <div class="cmds-item"><code>vim</code><span>открыть в vim</span></div>
+          <div class="cmds-item"><code>grep</code><span>найти строку в файле</span></div>
+          <div class="cmds-item"><code>top</code><span>снимок процессов</span></div>
+          <div class="cmds-item"><code>history</code><span>история команд</span></div>
           <div class="cmds-item"><code>clear</code><span>очистить экран</span></div>
           <div class="cmds-item"><code>help</code><span>все команды</span></div>
         </div>
@@ -99,7 +102,7 @@
 
     <aside class="tasks-pane">
       <div class="tasks-header">
-        <h2>vimquest</h2>
+        <h2>vimlab</h2>
       </div>
 
       <div class="mode-tabs">
@@ -107,7 +110,19 @@
         <button id="mode-tasks-tab" class="mode-tab" type="button">🎯 Задания</button>
       </div>
 
-      <div id="tutorial-panel" class="mode-panel">
+      <div id="welcome-panel" class="mode-panel">
+        <p class="tutorial-intro">
+          Терминал слева уже открыт и полностью свободен — набирайте что
+          угодно, без каких-либо проверок.
+        </p>
+        <p class="tutorial-intro">
+          Никогда не пробовали vim — жмите <b>«Обучение»</b> выше, там
+          покажут пошагово. Уже освоились — жмите <b>«Задания»</b>, там
+          28 задач посложнее, со звёздами за скорость.
+        </p>
+      </div>
+
+      <div id="tutorial-panel" class="mode-panel hidden">
         <p class="tutorial-intro">
           Пошаговое обучение прямо в терминале — подсказки появляются
           сами, просто делайте то, что в них написано.

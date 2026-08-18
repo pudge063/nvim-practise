@@ -16,7 +16,7 @@ function seedTree() {
       user: dir({
         "welcome.txt": file(
           [
-            "Добро пожаловать в vimquest!",
+            "Добро пожаловать в vimlab!",
             "",
             "Это обычный терминал: ls, cd, mkdir, touch, cat, rm тут работают.",
             "Откройте vim командой:",

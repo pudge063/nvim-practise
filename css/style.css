@@ -643,9 +643,30 @@ textarea,
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
+/* Whichever tab ISN'T the current mode keeps a slow "you can click me"
+   pulse — including both of them at once on first load, before either
+   mode has been picked (see main.js: mode starts as null, the page
+   opens on a plain free-play terminal, not either guided mode). */
+.mode-tab:not(.active) {
+  animation: fx-tab-invite 2.4s ease-in-out infinite;
+}
+
+@keyframes fx-tab-invite {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(125, 211, 252, 0);
+    border-color: var(--border-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+    border-color: rgba(125, 211, 252, 0.5);
+  }
+}
+
 .mode-tab:hover {
   color: var(--fg);
   border-color: var(--border-strong);
+  animation: none;
 }
 
 .mode-tab.active {

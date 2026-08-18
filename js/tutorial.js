@@ -100,10 +100,16 @@ export class TutorialManager {
     this.stepIndex = -1;
     this.stepStartState = null;
     this.done = false;
+    this.started = false;
     this._renderStepList();
   }
 
+  // Idempotent-ish on purpose: main.js only calls this the *first* time
+  // the tutorial tab is opened (guarded by `started`) — reopening the
+  // tab later should just show wherever the learner left off, not wipe
+  // progress by reseeding the file and resetting to step 0.
   start() {
+    this.started = true;
     this.stepIndex = 0;
     this.done = false;
     this.fs.write(TUTORIAL_PATH, TUTORIAL_SEED);

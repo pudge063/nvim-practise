@@ -14,13 +14,28 @@ export const COMMAND_NAMES = [
   "cat",
   "echo",
   "rm",
+  "cp",
+  "mv",
+  "head",
+  "tail",
+  "wc",
+  "grep",
   "clear",
   "vim",
   "vi",
   "whoami",
+  "hostname",
+  "date",
+  "uname",
+  "uptime",
+  "history",
   "w",
+  "ps",
+  "top",
+  "du",
+  "df",
+  "man",
   "reboot",
-  "sudo",
   "help",
 ];
 
@@ -34,18 +49,71 @@ const HELP_TEXT = [
   "  touch <name>     create an empty file",
   "  cat <file>       print a file's contents",
   "  echo <text>      print text (supports > file / >> file)",
+  "  head/tail <file> [-n N]  first/last N lines (default 10)",
+  "  wc <file>        count lines/words/characters",
+  "  grep <pat> <file> print lines containing pat",
+  "  cp <src> <dst>   copy a file",
+  "  mv <src> <dst>   move/rename a file",
   "  rm <file>        remove a file",
   "  clear            clear the screen",
   "  vim / vi [file]  open a file in vim; no argument (or a directory)",
   "                   browses that directory so you can pick a file",
   "  whoami           print the current user",
+  "  hostname         print the machine name",
+  "  date             print the current date/time",
+  "  uname [-a]       print system info",
+  "  uptime           how long this session has been up",
+  "  history          your command history",
   "  w                show who's logged in",
+  "  ps               list running processes",
+  "  top              a snapshot of what's using CPU/memory",
+  "  du               fake disk usage of the current directory",
+  "  df               fake filesystem usage",
+  "  man <command>    a one-line manual entry",
   "  reboot           reload the page",
   "  help             this message",
   "",
   "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
   "Tab completes commands and paths, like a real shell.",
 ].join("\n");
+
+// Keyed by exact command name (not fuzzy-parsed out of HELP_TEXT) so
+// every alias (vim/vi) and multi-word entry (head/tail) resolves
+// correctly — see the `man` case below.
+const MAN_TEXT = {
+  ls: "ls [path] - list files",
+  ll: "ll [path] - list files, one per line, with fake permissions",
+  cd: "cd [path] - change directory ('-': previous, '~'/no arg: home)",
+  pwd: "pwd - print working directory",
+  mkdir: "mkdir <name> - create a directory",
+  touch: "touch <name> - create an empty file",
+  cat: "cat <file> - print a file's contents",
+  echo: "echo <text> - print text (supports > file / >> file)",
+  head: "head <file> [-n N] - print the first N lines (default 10)",
+  tail: "tail <file> [-n N] - print the last N lines (default 10)",
+  wc: "wc <file> - count lines, words, and characters",
+  grep: "grep <pattern> <file> - print lines containing pattern",
+  cp: "cp <src> <dst> - copy a file",
+  mv: "mv <src> <dst> - move/rename a file",
+  rm: "rm <file> - remove a file",
+  clear: "clear - clear the screen",
+  vim: "vim [file] - edit a file; no argument browses the current directory",
+  vi: "vi [file] - alias for vim",
+  whoami: "whoami - print the current user",
+  hostname: "hostname - print the machine name",
+  date: "date - print the current date and time",
+  uname: "uname [-a] - print system information",
+  uptime: "uptime - how long this session has been running",
+  history: "history - list previously run commands",
+  w: "w - show who's logged in and what they're running",
+  ps: "ps - list running processes",
+  top: "top - a snapshot of CPU/memory usage per process",
+  du: "du - disk usage of the current directory",
+  df: "df - filesystem usage summary",
+  man: "man <command> - show a one-line manual entry",
+  reboot: "reboot - reload the page",
+  help: "help - list all available commands",
+};
 
 function tokenize(line) {
   return line.trim().split(/\s+/).filter(Boolean);
@@ -100,10 +168,48 @@ function looksLikeRmRfRoot(fs, args) {
 
 const FAKE_PERMS = { dir: "drwxr-xr-x", file: "-rw-r--r--" };
 
+// ---------- fake system stats shared by w / uptime / ps / top ----------
+
+// Real elapsed time since the page loaded, presented as this session's
+// "uptime" — the one honest number among all the invented ones below.
+const SESSION_START = Date.now();
+
+function fakeUptime() {
+  const ms = Date.now() - SESSION_START;
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${String(m).padStart(2, "0")}`;
+}
+
+function fakeClock() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" + String(d.getSeconds()).padStart(2, "0");
+}
+
+function fakeLoadAvg() {
+  return [0, 0, 0].map(() => (Math.random() * 0.6 + 0.1).toFixed(2)).join(", ");
+}
+
+const FAKE_PROCESSES = [
+  { pid: 1, user: "root", cmd: "systemd" },
+  { pid: 118, user: "root", cmd: "sshd" },
+  { pid: 342, user: "user", cmd: "bash" },
+  { pid: 615, user: "user", cmd: "node" },
+  { pid: 891, user: "user", cmd: "nginx" },
+  { pid: 1024, user: "user", cmd: "vim" },
+];
+
+function randRange(min, max, digits = 1) {
+  return (Math.random() * (max - min) + min).toFixed(digits);
+}
+
 // The actual command dispatch, redirect-unaware — `runCommand` below
 // strips any `>`/`>>` before calling this and decides what to do with
-// the output afterwards.
-function executeCommand(fs, cmd, args) {
+// the output afterwards. `history` is the shell's own command log
+// (terminal.js owns it — passed in rather than duplicated here) used
+// only by the `history` command.
+function executeCommand(fs, cmd, args, history) {
   const out = (text, cls = "") => ({ text, cls });
 
   try {
@@ -117,21 +223,126 @@ function executeCommand(fs, cmd, args) {
       case "whoami":
         return { lines: [out("user")], action: null };
 
+      case "hostname":
+        return { lines: [out("vimlab")], action: null };
+
+      case "date": {
+        const d = new Date();
+        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const two = (n) => String(n).padStart(2, "0");
+        return {
+          lines: [
+            out(
+              `${days[d.getDay()]} ${months[d.getMonth()]} ${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())} ${d.getFullYear()}`
+            ),
+          ],
+          action: null,
+        };
+      }
+
+      case "uname":
+        return {
+          lines: [
+            out(
+              args.includes("-a")
+                ? "Linux vimlab 6.8.0-generic #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux"
+                : "Linux"
+            ),
+          ],
+          action: null,
+        };
+
+      case "uptime":
+        return {
+          lines: [out(`${fakeClock()} up ${fakeUptime()}, 1 user, load average: ${fakeLoadAvg()}`)],
+          action: null,
+        };
+
+      case "history": {
+        if (!history || history.length === 0) return { lines: [], action: null };
+        return {
+          lines: history.map((h, i) => out(`  ${String(i + 1).padStart(3)}  ${h}`)),
+          action: null,
+        };
+      }
+
       case "echo":
         return { lines: [out(args.join(" "))], action: null };
 
       case "w":
         return {
           lines: [
-            out(" up 0 days, 1 user, load average: 0.00, 0.00, 0.00"),
+            out(` ${fakeClock()} up ${fakeUptime()}, 1 user, load average: ${fakeLoadAvg()}`),
             out("USER     TTY      FROM         LOGIN@   IDLE   WHAT"),
-            out(`user     pts/0    vimquest     now      0.00s  ${cmd}`),
+            out(`user     pts/0    vimlab       now      0.00s  ${cmd}`),
           ],
           action: null,
         };
 
-      case "reboot":
-        return { lines: [out("Rebooting...")], action: { type: "reboot" } };
+      case "ps": {
+        const lines = [out("  PID TTY          TIME CMD")];
+        for (const p of FAKE_PROCESSES.filter((p) => p.user === "user")) {
+          lines.push(out(`${String(p.pid).padStart(5)} pts/0    00:00:0${p.pid % 6} ${p.cmd}`));
+        }
+        return { lines, action: null };
+      }
+
+      case "top": {
+        const cpuUser = randRange(1, 12);
+        const cpuSys = randRange(0.2, 3);
+        const cpuIdle = (100 - cpuUser - cpuSys).toFixed(1);
+        const memTotal = 7943.1;
+        const memUsed = Number(randRange(1800, 4200, 1));
+        const lines = [
+          out(`top - ${fakeClock()} up ${fakeUptime()}, 1 user, load average: ${fakeLoadAvg()}`),
+          out(
+            `Tasks: ${FAKE_PROCESSES.length + 3} total, 1 running, ${FAKE_PROCESSES.length + 2} sleeping, 0 stopped, 0 zombie`
+          ),
+          out(`%Cpu(s): ${cpuUser} us, ${cpuSys} sy, 0.0 ni, ${cpuIdle} id, 0.1 wa, 0.0 hi, 0.0 si, 0.0 st`),
+          out(`MiB Mem : ${memTotal.toFixed(1)} total, ${(memTotal - memUsed).toFixed(1)} free, ${memUsed.toFixed(1)} used, 1200.0 buff/cache`),
+          out(`MiB Swap: 2048.0 total, 2048.0 free, 0.0 used. ${(memTotal - memUsed + 400).toFixed(1)} avail Mem`),
+          out(""),
+          out("  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND", "line-dir"),
+        ];
+        for (const p of FAKE_PROCESSES) {
+          const pcpu = randRange(0, p.cmd === "vim" ? 3 : 8);
+          const pmem = randRange(0.1, 4);
+          const virt = 40000 + p.pid * 130;
+          const res = 4000 + p.pid * 20;
+          lines.push(
+            out(
+              `${String(p.pid).padStart(5)} ${p.user.padEnd(8)}  20   0 ${String(virt).padStart(7)} ${String(res).padStart(6)}   ${String(
+                Math.round(res * 0.6)
+              ).padStart(5)} S ${String(pcpu).padStart(5)} ${String(pmem).padStart(5)}   0:0${p.pid % 6}.${p.pid % 90} ${p.cmd}`
+            )
+          );
+        }
+        return { lines, action: null };
+      }
+
+      case "du":
+        return {
+          lines: [out(`${(4 + fs.list(fs.cwd).length * 4).toFixed(0)}.0K\t.`)],
+          action: null,
+        };
+
+      case "df":
+        return {
+          lines: [
+            out("Filesystem     1K-blocks     Used Available Use% Mounted on"),
+            out("/dev/sda1      102400000 45182364  52170112  47% /"),
+            out("tmpfs            4071424        0   4071424   0% /dev/shm"),
+          ],
+          action: null,
+        };
+
+      case "man": {
+        if (!args[0]) return { lines: [out("What manual page do you want?", "line-error")], action: null };
+        const entry = MAN_TEXT[args[0]];
+        if (!entry) return { lines: [out(`No manual entry for ${args[0]}`, "line-error")], action: null };
+        return { lines: [out(entry)], action: null };
+      }
 
       case "ls": {
         const target = args[0] ?? fs.cwd;
@@ -186,6 +397,53 @@ function executeCommand(fs, cmd, args) {
         return { lines: [out(content === "" ? "" : content)], action: null };
       }
 
+      case "head":
+      case "tail": {
+        if (!args[0]) return { lines: [out(`${cmd}: missing operand`, "line-error")], action: null };
+        let n = 10;
+        const nIdx = args.indexOf("-n");
+        const file = args.filter((a, i) => a !== "-n" && i !== nIdx + 1)[0] ?? args[args.length - 1];
+        if (nIdx !== -1 && args[nIdx + 1]) n = parseInt(args[nIdx + 1], 10) || 10;
+        const lines = fs.read(file).split("\n");
+        const slice = cmd === "head" ? lines.slice(0, n) : lines.slice(-n);
+        return { lines: slice.map((l) => out(l)), action: null };
+      }
+
+      case "wc": {
+        if (!args[0]) return { lines: [out("wc: missing operand", "line-error")], action: null };
+        const content = fs.read(args[0]);
+        const lc = content === "" ? 0 : content.split("\n").length;
+        const wc = content.trim() === "" ? 0 : content.trim().split(/\s+/).length;
+        const cc = content.length;
+        return {
+          lines: [out(`${String(lc).padStart(7)} ${String(wc).padStart(7)} ${String(cc).padStart(7)} ${args[0]}`)],
+          action: null,
+        };
+      }
+
+      case "grep": {
+        if (!args[1]) return { lines: [out("grep: missing operand", "line-error")], action: null };
+        const [pattern, file] = args;
+        const matches = fs
+          .read(file)
+          .split("\n")
+          .filter((l) => l.includes(pattern));
+        return { lines: matches.map((l) => out(l)), action: null };
+      }
+
+      case "cp": {
+        if (!args[0] || !args[1]) return { lines: [out("cp: missing operand", "line-error")], action: null };
+        fs.write(args[1], fs.read(args[0]));
+        return { lines: [], action: null };
+      }
+
+      case "mv": {
+        if (!args[0] || !args[1]) return { lines: [out("mv: missing operand", "line-error")], action: null };
+        fs.write(args[1], fs.read(args[0]));
+        fs.remove(args[0]);
+        return { lines: [], action: null };
+      }
+
       case "rm": {
         if (!args[0]) return { lines: [out("rm: missing operand", "line-error")], action: null };
         fs.remove(args[0]);
@@ -226,7 +484,7 @@ function executeCommand(fs, cmd, args) {
 // { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
 // looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
 // error phase, straight to the picture).
-export function runCommand(fs, rawLine) {
+export function runCommand(fs, rawLine, { history } = {}) {
   const line = rawLine.trim();
   if (!line) return { lines: [], action: null };
 
@@ -254,7 +512,7 @@ export function runCommand(fs, rawLine) {
 
   const { tokens, redirect } = splitRedirect(rawTokens);
   const [cmd, ...args] = tokens;
-  const result = executeCommand(fs, cmd, args);
+  const result = executeCommand(fs, cmd, args, history);
 
   if (!redirect) return result;
 
