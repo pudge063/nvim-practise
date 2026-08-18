@@ -162,18 +162,9 @@ textarea,
 .workspace {
   flex: 1;
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: center;
-  gap: 22px;
   padding: 16px clamp(16px, 4vw, 48px) 28px;
-}
-
-@media (max-width: 880px) {
-  .workspace {
-    flex-direction: column;
-    align-items: center;
-  }
 }
 
 /* ---------- terminal window ---------- */
@@ -606,11 +597,9 @@ textarea,
    task tile + the open detail panel, and the page scrolls as a whole
    if it needs to, rather than cropping content inside this box. */
 .tasks-pane {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: none;
-  width: 360px;
-  max-width: 100%;
   background: var(--bg-panel);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
@@ -618,39 +607,50 @@ textarea,
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.75);
   animation: fx-panel-in 0.5s ease-out 0.08s both;
+  overflow: hidden;
 }
 
-.tasks-header {
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.tasks-header h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-family: var(--mono);
+/* Thin gradient cap along the top edge — the same quiet "this is a
+   distinct app panel" cue the terminal gets from its spinning border,
+   without repeating that exact effect on a panel that isn't a window. */
+.tasks-pane::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+  opacity: 0.7;
 }
 
 /* ---------- mode switch: tutorial vs. tasks ---------- */
 .mode-tabs {
   display: flex;
-  gap: 6px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-soft);
+  gap: 8px;
+  padding: 16px 16px 12px;
 }
 
 .mode-tab {
   flex: 1;
-  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
   background: rgba(255, 255, 255, 0.03);
   color: var(--fg-dim);
   font-family: var(--sans);
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.15s ease,
+    box-shadow 0.18s ease;
+}
+
+.mode-tab-icon {
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 /* Whichever tab ISN'T the current mode keeps a slow "you can click me"
@@ -676,13 +676,16 @@ textarea,
 .mode-tab:hover {
   color: var(--fg);
   border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
   animation: none;
 }
 
 .mode-tab.active {
-  background: rgba(125, 211, 252, 0.14);
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.22), rgba(196, 181, 253, 0.16));
   border-color: var(--accent);
   color: var(--accent);
+  box-shadow: 0 8px 20px -10px rgba(125, 211, 252, 0.55);
 }
 
 .mode-panel.hidden {
@@ -690,33 +693,33 @@ textarea,
 }
 
 .tutorial-intro {
-  margin: 12px 12px 4px;
-  padding: 10px 12px;
+  margin: 14px 16px 4px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   background: rgba(196, 181, 253, 0.08);
   border: 1px solid rgba(196, 181, 253, 0.2);
   color: var(--fg-dim);
-  font-size: 0.8rem;
-  line-height: 1.55;
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .tutorial-steps {
   list-style: none;
   margin: 0;
-  padding: 8px 12px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .tutorial-step {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
   color: var(--fg-faint);
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -755,14 +758,14 @@ textarea,
 }
 
 #tutorial-status {
-  margin: 8px 12px 14px;
+  margin: 8px 16px 16px;
 }
 
 .progress-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 12px 18px 0;
+  padding: 14px 18px 0;
 }
 
 .progress-summary {
@@ -771,21 +774,22 @@ textarea,
 }
 
 .tasks-list {
-  padding: 8px;
+  padding: 10px;
 }
 
 .task-category {
-  padding: 10px 8px 4px;
+  padding: 12px 8px 4px;
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-faint);
+  font-weight: 700;
 }
 
 .task-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 7px;
   padding: 2px 8px 10px;
 }
 
@@ -795,20 +799,22 @@ textarea,
   align-items: center;
   justify-content: center;
   border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.03);
   color: var(--fg-dim);
   font-family: var(--mono);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .task-tile:hover {
   border-color: var(--accent);
   color: var(--accent);
-  transform: translateY(-1px);
+  background: rgba(125, 211, 252, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px -8px rgba(125, 211, 252, 0.5);
 }
 
 .task-tile.active {
@@ -888,21 +894,24 @@ textarea,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.04);
   color: var(--fg);
   font-family: var(--sans);
   font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .hint-btn:hover {
   background: rgba(252, 211, 77, 0.12);
   border-color: var(--accent-warn);
   color: var(--accent-warn);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgba(252, 211, 77, 0.55);
 }
 
 .hint-box {
@@ -941,26 +950,37 @@ textarea,
 .reopen-btn {
   margin-top: 10px;
   display: inline-flex;
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.04);
   color: var(--fg);
   font-family: var(--sans);
   font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .reopen-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgba(125, 211, 252, 0.5);
 }
 
 .hidden {
   display: none !important;
 }
 
+.rmrf-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .rmrf-warning {
+  flex: 1 1 220px;
   text-align: center;
   font-family: var(--mono);
   font-size: 0.8rem;
@@ -1120,9 +1140,9 @@ textarea,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: calc(100% - 16px);
-  margin: 8px;
-  padding: 10px;
+  width: calc(100% - 20px);
+  margin: 10px;
+  padding: 12px;
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-strong);
   background: linear-gradient(135deg, rgba(125, 211, 252, 0.1), rgba(196, 181, 253, 0.1));
@@ -1131,13 +1151,15 @@ textarea,
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .freeplay-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.16), rgba(196, 181, 253, 0.14));
   transform: translateY(-1px);
+  box-shadow: 0 10px 22px -12px rgba(125, 211, 252, 0.6);
 }
 
 .freeplay-btn.active {
