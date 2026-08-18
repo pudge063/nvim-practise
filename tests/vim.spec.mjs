@@ -206,6 +206,32 @@ test("operator + f{char}: df) deletes up to and including the char", () => {
   assert.equal(e.lines[0], " please");
 });
 
+test("cw is special-cased like ce (stops at end of word, doesn't eat trailing space) unlike dw", () => {
+  const cw = new VimEngine("fix typo here", "t.txt");
+  keys(cw, ["c", "w"]);
+  assert.equal(cw.mode, "insert");
+  assert.equal(cw.lines[0], " typo here"); // "fix" gone, the space after it stays
+  keys(cw, ["b", "u", "g", "Escape"]);
+  assert.equal(cw.lines[0], "bug typo here");
+
+  const dw = new VimEngine("fix typo here", "t.txt");
+  keys(dw, ["d", "w"]);
+  assert.equal(dw.lines[0], "typo here"); // dw keeps eating the trailing space
+});
+
+test("redoCount tracks Ctrl-r specifically (distinct from editCount, which undo/redo never change)", () => {
+  const e = new VimEngine("one line", "t.txt");
+  keys(e, ["d", "d"]);
+  assert.equal(e.editCount, 1);
+  keys(e, ["u"]);
+  assert.equal(e.editCount, 1);
+  assert.equal(e.redoCount, 0);
+  keys(e, ["<C-r>"]);
+  assert.equal(e.editCount, 1);
+  assert.equal(e.redoCount, 1);
+  assert.equal(e.lines.join("\n"), "");
+});
+
 test("setCursor seeds a task's starting position without counting as an edit", () => {
   const e = new VimEngine("a\nb\nc", "t.txt");
   e.setCursor(2, 0);

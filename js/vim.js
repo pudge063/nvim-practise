@@ -145,6 +145,11 @@ export class VimEngine {
     // (the undo task) without that being indistinguishable from "nothing
     // was ever touched." See docs/adr/0004-task-validation.md.
     this.editCount = 0;
+    // Same idea as editCount, but for Ctrl-r specifically — lets a task
+    // check "a redo actually happened" (as opposed to e.g. just pressing
+    // dd again, which can land on the same final buffer state without
+    // ever touching redo).
+    this.redoCount = 0;
     this.modified = false;
     this.savedOnce = false;
     this.message = "";
@@ -162,6 +167,7 @@ export class VimEngine {
       mode: this.mode,
       keystrokes: this.keystrokes,
       editCount: this.editCount,
+      redoCount: this.redoCount,
       register: { ...this.register },
       filename: this.filename,
       modified: this.modified,
@@ -220,6 +226,7 @@ export class VimEngine {
       this.message = "Already at newest change";
       return;
     }
+    this.redoCount++;
     this.undoStack.push({ lines: this.lines.slice(), cursor: { ...this.cursor } });
     this.lines = snap.lines;
     this.cursor = snap.cursor;
@@ -387,7 +394,17 @@ export class VimEngine {
         this.pendingPrefixCount = count * this.opCount;
         return;
       }
-      const motion = this._motion(key, count * this.opCount);
+      // Real vim's one celebrated special case: `cw` (change-word) acts
+      // like `ce` — up to the end of the word, not through the trailing
+      // whitespace to the start of the next one — specifically so typing
+      // a replacement after it doesn't mash into the following word with
+      // no space between them. Only `c` gets this; `dw`/`yw` keep the
+      // normal "through the whitespace" motion.
+      const motionKey =
+        this.pendingOperator === "c" && key === "w" && classify(this._line()[this.cursor.col]) !== "space"
+          ? "e"
+          : key;
+      const motion = this._motion(motionKey, count * this.opCount);
       if (motion) {
         this._applyOperatorMotion(motion);
       } else {

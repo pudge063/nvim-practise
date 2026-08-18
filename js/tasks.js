@@ -142,6 +142,56 @@ export const TASKS = [
       return state.cursor.row === 6;
     },
   },
+  {
+    id: "move-word-end",
+    category: "Движение",
+    title: "Конец слова",
+    description: "Встаньте ровно на <b>последнюю букву</b> слова «длинного» — одной командой.",
+    hint: "<code>e</code> переносит курсор на конец текущего/следующего слова — в отличие от <code>w</code>, которая идёт на НАЧАЛО следующего слова.",
+    seed: {
+      path: "/home/user/practice/move-word-end.txt",
+      lines: ["прыжок до конца длинного слова тут"],
+      cursor: { row: 0, col: "прыжок до конца ".length },
+    },
+    targetKeystrokes: 1,
+    check(state) {
+      const word = "длинного";
+      const start = state.lines[0].indexOf(word);
+      return state.cursor.row === 0 && state.cursor.col === start + word.length - 1;
+    },
+  },
+  {
+    id: "move-word-back",
+    category: "Движение",
+    title: "Слово назад",
+    description: "Вернитесь курсором на <b>начало слова «начало»</b> — одной командой назад.",
+    hint: "<code>b</code> — парная команда к <code>w</code>, но в обратную сторону: на начало предыдущего слова.",
+    seed: {
+      path: "/home/user/practice/move-word-back.txt",
+      lines: ["вернитесь назад к слову начало отсюда"],
+      cursor: { row: 0, col: "вернитесь назад к слову начало ".length },
+    },
+    targetKeystrokes: 1,
+    check(state) {
+      return state.cursor.row === 0 && state.cursor.col === state.lines[0].indexOf("начало");
+    },
+  },
+  {
+    id: "move-count-h",
+    category: "Движение",
+    title: "Точный прыжок влево",
+    description: "Сдвиньтесь ровно на <b>5 символов влево</b> от текущей позиции — одной командой.",
+    hint: "Число перед <code>h</code> — <code>5h</code> — работает так же, как <code>6j</code>, только по горизонтали.",
+    seed: {
+      path: "/home/user/practice/move-count-h.txt",
+      lines: ["подвиньтесь на пять влево ровно отсюда, здесь текста побольше"],
+      cursor: { row: 0, col: 20 },
+    },
+    targetKeystrokes: 2,
+    check(state) {
+      return state.cursor.row === 0 && state.cursor.col === 15;
+    },
+  },
 
   // ---------- Слова и выделение ----------
   {
@@ -266,6 +316,54 @@ export const TASKS = [
       );
     },
   },
+  {
+    id: "change-word-cw",
+    category: "Слова и выделение",
+    title: "Заменить слово через cw",
+    description: "В слове опечатка: «ошибка» — исправьте на «правильно», удалив и сразу начав печатать одной командой.",
+    hint: "<code>cw</code> (change word) удаляет слово и сразу входит в Insert mode — в отличие от <code>dw</code>, пробел после слова не трогается, набранный текст встанет ровно на его место.",
+    seed: {
+      path: "/home/user/practice/change-word-cw.txt",
+      lines: ["Замените слово ошибка здесь на слово исправлено"],
+      cursor: { row: 0, col: "Замените слово ".length },
+    },
+    targetKeystrokes: 12,
+    check(state) {
+      return state.lines[0] === "Замените слово правильно здесь на слово исправлено";
+    },
+  },
+  {
+    id: "visual-yank-paste",
+    category: "Слова и выделение",
+    title: "Скопировать визуальным выделением",
+    description: "Выделите слово «ВОТЭТО» через Visual mode, <b>скопируйте</b> (не удаляйте) и вставьте копию во вторую строку.",
+    hint: "<code>v</code> + <code>e</code> выделяет слово целиком, <code>y</code> копирует выделенное (в отличие от <code>d</code>, ничего не удаляя), затем перейдите строкой ниже и <code>p</code>.",
+    seed: {
+      path: "/home/user/practice/visual-yank-paste.txt",
+      lines: ["скопируйте слово ВОТЭТО отсюда", "а сюда: "],
+      cursor: { row: 0, col: "скопируйте слово ".length },
+    },
+    targetKeystrokes: 6,
+    check(state) {
+      return state.lines[0].includes("ВОТЭТО") && state.lines[1].includes("ВОТЭТО");
+    },
+  },
+  {
+    id: "delete-count-words",
+    category: "Слова и выделение",
+    title: "Удалить несколько слов сразу",
+    description: "Удалите ровно <b>первые два слова</b> одной командой.",
+    hint: "Число перед оператором с движением — <code>2dw</code> — удаляет 2 слова разом, так же как <code>3dd</code> удаляет 3 строки.",
+    seed: {
+      path: "/home/user/practice/delete-count-words.txt",
+      lines: ["раз два три четыре пять шесть"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 3,
+    check(state) {
+      return state.lines[0] === "три четыре пять шесть";
+    },
+  },
 
   // ---------- Поиск ----------
   {
@@ -328,6 +426,22 @@ export const TASKS = [
     targetKeystrokes: null,
     check(state) {
       return state.cursor.row === 0 && state.cursor.col === state.lines[0].indexOf("МАЯК");
+    },
+  },
+  {
+    id: "search-then-edit",
+    category: "Поиск",
+    title: "Найти и сразу исправить",
+    description: "Найдите слово «МУСОР» поиском и удалите его прямо там — связка поиска с редактированием, как в реальной работе.",
+    hint: "<code>/МУСОР</code> + Enter находит слово, курсор уже стоит на нём — дальше подойдёт любой способ удаления слова, например <code>diw</code>.",
+    seed: {
+      path: "/home/user/practice/search-then-edit.txt",
+      lines: ["первая строка", "здесь есть МУСОР который нужно убрать", "третья строка"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: null,
+    check(state) {
+      return state.lines.length === 3 && !state.lines[1].includes("МУСОР") && state.lines[1].includes("убрать");
     },
   },
 
@@ -437,6 +551,26 @@ export const TASKS = [
       return state.lines.join("\n") === "альфа\nбета\nгамма\nдельта\nальфа\nбета";
     },
   },
+  {
+    id: "substitute-count",
+    category: "Сортировка и команды",
+    title: "Перейти на строку и заменить",
+    description: "Перейдите на <b>строку 2</b> и замените там слово «цель» на «результат».",
+    hint: "<code>:2</code> переносит на строку 2, затем <code>:s/цель/результат/</code> заменяет слово в текущей строке — две команды подряд, каждая начинается с <code>:</code>.",
+    seed: {
+      path: "/home/user/practice/substitute-count.txt",
+      lines: ["первая", "вторая цель здесь", "третья", "четвёртая", "пятая"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: null,
+    check(state) {
+      return (
+        state.lines[1] === "вторая результат здесь" &&
+        state.lines[0] === "первая" &&
+        state.lines[2] === "третья"
+      );
+    },
+  },
 
   // ---------- Редактирование ----------
   {
@@ -509,6 +643,107 @@ export const TASKS = [
         state.editCount >= 1 &&
         state.lines.join("\n") === "Эту строку можно удалить — а потом обязательно верните её отменой."
       );
+    },
+  },
+  {
+    id: "redo-edit",
+    category: "Редактирование",
+    title: "Повторить отменённое",
+    description:
+      "Удалите строку (<code>dd</code>), отмените (<code>u</code>) — а затем <b>повторите отменённое действие</b>, чтобы строка снова исчезла.",
+    hint: "<code>Ctrl-r</code> — парная команда к <code>u</code>: повторяет то, что было отменено. Полезно, если отменили случайно лишний раз.",
+    seed: {
+      path: "/home/user/practice/redo-edit.txt",
+      lines: ["Строку удалите, отмените, потом верните удаление через redo."],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 4,
+    check(state) {
+      return state.redoCount >= 1 && state.lines.join("\n") === "";
+    },
+  },
+  {
+    id: "open-below",
+    category: "Редактирование",
+    title: "Новая строка снизу",
+    description: 'Добавьте новую строку СНИЗУ существующей с текстом ровно: <code>вторая строка</code>.',
+    hint: "<code>o</code> (строчная) открывает новую строку ПОД текущей и сразу входит в Insert mode — парная команда к <code>O</code>.",
+    seed: {
+      path: "/home/user/practice/open-below.txt",
+      lines: ["первая строка (существует)"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 15,
+    check(state) {
+      return (
+        state.lines.length === 2 &&
+        state.lines[0] === "первая строка (существует)" &&
+        state.lines[1] === "вторая строка"
+      );
+    },
+  },
+  {
+    id: "paste-before",
+    category: "Редактирование",
+    title: "Вставить перед строкой",
+    description: "Скопируйте первую строку и вставьте копию так, чтобы она оказалась <b>перед</b> строкой «бета», а не после неё.",
+    hint: "<code>yy</code> копирует строку, <code>j</code> — на следующую, а <code>P</code> (заглавная) вставляет ПЕРЕД текущей строкой — в отличие от строчной <code>p</code>.",
+    seed: {
+      path: "/home/user/practice/paste-before.txt",
+      lines: ["альфа", "бета"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 4,
+    check(state) {
+      return state.lines.join("\n") === "альфа\nальфа\nбета";
+    },
+  },
+  {
+    id: "append-eol",
+    category: "Редактирование",
+    title: "Добавить в конец строки",
+    description: 'Допишите в самый конец строки ровно: <code>!!!</code> — одной командой, не считая символов.',
+    hint: "<code>A</code> (заглавная) сразу переносит курсор в конец строки И входит в Insert mode — быстрее, чем <code>$</code> + <code>a</code>.",
+    seed: {
+      path: "/home/user/practice/append-eol.txt",
+      lines: ["Допишите сюда"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 5,
+    check(state) {
+      return state.lines[0] === "Допишите сюда!!!";
+    },
+  },
+  {
+    id: "insert-first-nonblank",
+    category: "Редактирование",
+    title: "Вставить перед текстом, не перед пробелами",
+    description: "Курсор в конце строки с отступом. Допишите <code>ВОТ </code> прямо перед первым словом, не трогая отступ.",
+    hint: "<code>I</code> (заглавная) переносит курсор на первый непробельный символ строки И входит в Insert mode — сочетание <code>^</code> + <code>i</code> одной командой.",
+    seed: {
+      path: "/home/user/practice/insert-first-nonblank.txt",
+      lines: ["      сюда что-то допишите спереди"],
+      cursor: { row: 0, col: "      сюда что-то допишите спереди".length - 1 },
+    },
+    targetKeystrokes: 6,
+    check(state) {
+      return state.lines[0] === "      ВОТ сюда что-то допишите спереди";
+    },
+  },
+  {
+    id: "delete-to-char",
+    category: "Редактирование",
+    title: "Удалить до символа",
+    description: "Удалите весь текст от начала строки до символа <code>|</code> включительно, одной командой.",
+    hint: "<code>df|</code> удаляет всё от курсора до следующего символа <code>|</code>, включая его самого — тот же приём, что и <code>df)</code>, только с другим символом.",
+    seed: {
+      path: "/home/user/practice/delete-to-char.txt",
+      lines: ["уберите-префикс-до|этого-места"],
+      cursor: { row: 0, col: 0 },
+    },
+    targetKeystrokes: 3,
+    check(state) {
+      return state.lines[0] === "этого-места";
     },
   },
 ];
