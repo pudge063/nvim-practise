@@ -41,8 +41,8 @@ export const COMMAND_NAMES = [
 
 const HELP_TEXT = [
   "Available commands:",
-  "  ls [path]        list files",
-  "  ll [path]        list files, one per line, with fake permissions",
+  "  ls [-la] [path]  list files (-l long, -a show . and ..)",
+  "  ll [-a] [path]   list files, one per line, with fake permissions",
   "  cd [path]        change directory (no argument: home; '-': previous; '~': home)",
   "  pwd              print working directory",
   "  mkdir <name>     create a directory",
@@ -54,7 +54,7 @@ const HELP_TEXT = [
   "  grep <pat> <file> print lines containing pat",
   "  cp <src> <dst>   copy a file",
   "  mv <src> <dst>   move/rename a file",
-  "  rm <file>        remove a file",
+  "  rm [-f] <file...> remove one or more files (supports * and ./* globs)",
   "  clear            clear the screen",
   "  vim / vi [file]  open a file in vim; no argument (or a directory)",
   "                   browses that directory so you can pick a file",
@@ -66,7 +66,7 @@ const HELP_TEXT = [
   "  history          your command history",
   "  w                show who's logged in",
   "  ps               list running processes",
-  "  top              a snapshot of what's using CPU/memory",
+  "  top              a live (fake) snapshot of CPU/memory usage, q to quit",
   "  du               fake disk usage of the current directory",
   "  df               fake filesystem usage",
   "  man <command>    a one-line manual entry",
@@ -75,14 +75,15 @@ const HELP_TEXT = [
   "",
   "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
   "Tab completes commands and paths, like a real shell.",
+  "Add --help (or -h) after any command for its manual entry.",
 ].join("\n");
 
 // Keyed by exact command name (not fuzzy-parsed out of HELP_TEXT) so
 // every alias (vim/vi) and multi-word entry (head/tail) resolves
 // correctly — see the `man` case below.
 const MAN_TEXT = {
-  ls: "ls [path] - list files",
-  ll: "ll [path] - list files, one per line, with fake permissions",
+  ls: "ls [-l] [-a|-A] [path] - list files (-l long format, -a/-A show . and ..)",
+  ll: "ll [-a] [path] - list files, one per line, with fake permissions (-a shows . and ..)",
   cd: "cd [path] - change directory ('-': previous, '~'/no arg: home)",
   pwd: "pwd - print working directory",
   mkdir: "mkdir <name> - create a directory",
@@ -95,7 +96,7 @@ const MAN_TEXT = {
   grep: "grep <pattern> <file> - print lines containing pattern",
   cp: "cp <src> <dst> - copy a file",
   mv: "mv <src> <dst> - move/rename a file",
-  rm: "rm <file> - remove a file",
+  rm: "rm [-f] <file...> - remove one or more files; * and ./* expand to a directory's entries, -f ignores missing files",
   clear: "clear - clear the screen",
   vim: "vim [file] - edit a file; no argument browses the current directory",
   vi: "vi [file] - alias for vim",
@@ -107,7 +108,7 @@ const MAN_TEXT = {
   history: "history - list previously run commands",
   w: "w - show who's logged in and what they're running",
   ps: "ps - list running processes",
-  top: "top - a snapshot of CPU/memory usage per process",
+  top: "top - a live (fake) snapshot of CPU/memory usage per process; press q to quit",
   du: "du - disk usage of the current directory",
   df: "df - filesystem usage summary",
   man: "man <command> - show a one-line manual entry",
@@ -204,6 +205,64 @@ function randRange(min, max, digits = 1) {
   return (Math.random() * (max - min) + min).toFixed(digits);
 }
 
+// Generates one fresh (fake) snapshot of top's display, as plain text
+// lines — called once when `top` starts and then repeatedly by
+// terminal.js's live-refresh interval, so every call must re-randomize
+// (only fakeClock/fakeUptime are honestly time-based; everything else is
+// freshly rolled dice each time, which is exactly what makes it "live").
+export function renderTopSnapshot() {
+  const cpuUser = randRange(1, 12);
+  const cpuSys = randRange(0.2, 3);
+  const cpuIdle = (100 - cpuUser - cpuSys).toFixed(1);
+  const memTotal = 7943.1;
+  const memUsed = Number(randRange(1800, 4200, 1));
+  const lines = [
+    `top - ${fakeClock()} up ${fakeUptime()}, 1 user, load average: ${fakeLoadAvg()}`,
+    `Tasks: ${FAKE_PROCESSES.length + 3} total, 1 running, ${FAKE_PROCESSES.length + 2} sleeping, 0 stopped, 0 zombie`,
+    `%Cpu(s): ${cpuUser} us, ${cpuSys} sy, 0.0 ni, ${cpuIdle} id, 0.1 wa, 0.0 hi, 0.0 si, 0.0 st`,
+    `MiB Mem : ${memTotal.toFixed(1)} total, ${(memTotal - memUsed).toFixed(1)} free, ${memUsed.toFixed(1)} used, 1200.0 buff/cache`,
+    `MiB Swap: 2048.0 total, 2048.0 free, 0.0 used. ${(memTotal - memUsed + 400).toFixed(1)} avail Mem`,
+    "",
+    "  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND",
+  ];
+  for (const p of FAKE_PROCESSES) {
+    const pcpu = randRange(0, p.cmd === "vim" ? 3 : 8);
+    const pmem = randRange(0.1, 4);
+    const virt = 40000 + p.pid * 130;
+    const res = 4000 + p.pid * 20;
+    lines.push(
+      `${String(p.pid).padStart(5)} ${p.user.padEnd(8)}  20   0 ${String(virt).padStart(7)} ${String(res).padStart(6)}   ${String(
+        Math.round(res * 0.6)
+      ).padStart(5)} S ${String(pcpu).padStart(5)} ${String(pmem).padStart(5)}   0:0${p.pid % 6}.${p.pid % 90} ${p.cmd}`
+    );
+  }
+  lines.push("", "(press q to quit)");
+  return lines;
+}
+
+// `ls`/`ll` flag parsing — combined short flags (`-la`, `-al`, `-lA`),
+// separate ones (`-l -a`), and the long forms all count; unknown long
+// flags (`--color`, etc.) are silently accepted and ignored rather than
+// erroring, same spirit as a real `ls` humoring flags it doesn't act on.
+function parseLsFlags(args) {
+  let long = false;
+  let all = false;
+  const paths = [];
+  for (const a of args) {
+    if (a === "--all") {
+      all = true;
+    } else if (a.startsWith("--")) {
+      // ignore other long flags
+    } else if (a.startsWith("-") && a.length > 1) {
+      if (a.includes("l")) long = true;
+      if (/[aA]/.test(a)) all = true;
+    } else {
+      paths.push(a);
+    }
+  }
+  return { long, all, path: paths[0] };
+}
+
 // The actual command dispatch, redirect-unaware — `runCommand` below
 // strips any `>`/`>>` before calling this and decides what to do with
 // the output afterwards. `history` is the shell's own command log
@@ -211,6 +270,13 @@ function randRange(min, max, digits = 1) {
 // only by the `history` command.
 function executeCommand(fs, cmd, args, history) {
   const out = (text, cls = "") => ({ text, cls });
+
+  // `--help`/`-h` on any known command short-circuits straight to its
+  // manual entry, same as real coreutils — checked before the switch so
+  // it works uniformly without every case needing to handle it itself.
+  if ((args.includes("--help") || args.includes("-h")) && MAN_TEXT[cmd]) {
+    return { lines: [out(MAN_TEXT[cmd])], action: null };
+  }
 
   try {
     switch (cmd) {
@@ -288,38 +354,12 @@ function executeCommand(fs, cmd, args, history) {
         return { lines, action: null };
       }
 
-      case "top": {
-        const cpuUser = randRange(1, 12);
-        const cpuSys = randRange(0.2, 3);
-        const cpuIdle = (100 - cpuUser - cpuSys).toFixed(1);
-        const memTotal = 7943.1;
-        const memUsed = Number(randRange(1800, 4200, 1));
-        const lines = [
-          out(`top - ${fakeClock()} up ${fakeUptime()}, 1 user, load average: ${fakeLoadAvg()}`),
-          out(
-            `Tasks: ${FAKE_PROCESSES.length + 3} total, 1 running, ${FAKE_PROCESSES.length + 2} sleeping, 0 stopped, 0 zombie`
-          ),
-          out(`%Cpu(s): ${cpuUser} us, ${cpuSys} sy, 0.0 ni, ${cpuIdle} id, 0.1 wa, 0.0 hi, 0.0 si, 0.0 st`),
-          out(`MiB Mem : ${memTotal.toFixed(1)} total, ${(memTotal - memUsed).toFixed(1)} free, ${memUsed.toFixed(1)} used, 1200.0 buff/cache`),
-          out(`MiB Swap: 2048.0 total, 2048.0 free, 0.0 used. ${(memTotal - memUsed + 400).toFixed(1)} avail Mem`),
-          out(""),
-          out("  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND", "line-dir"),
-        ];
-        for (const p of FAKE_PROCESSES) {
-          const pcpu = randRange(0, p.cmd === "vim" ? 3 : 8);
-          const pmem = randRange(0.1, 4);
-          const virt = 40000 + p.pid * 130;
-          const res = 4000 + p.pid * 20;
-          lines.push(
-            out(
-              `${String(p.pid).padStart(5)} ${p.user.padEnd(8)}  20   0 ${String(virt).padStart(7)} ${String(res).padStart(6)}   ${String(
-                Math.round(res * 0.6)
-              ).padStart(5)} S ${String(pcpu).padStart(5)} ${String(pmem).padStart(5)}   0:0${p.pid % 6}.${p.pid % 90} ${p.cmd}`
-            )
-          );
-        }
-        return { lines, action: null };
-      }
+      // Live/interactive — terminal.js owns the actual periodic
+      // re-rendering (calling renderTopSnapshot() repeatedly) and the
+      // "q quits and clears" behavior; this command itself just triggers
+      // that mode instead of printing a one-shot snapshot.
+      case "top":
+        return { lines: [], action: { type: "top" } };
 
       case "du":
         return {
@@ -345,16 +385,29 @@ function executeCommand(fs, cmd, args, history) {
       }
 
       case "ls": {
-        const target = args[0] ?? fs.cwd;
-        const entries = fs.list(target);
+        const { long, all, path } = parseLsFlags(args);
+        const target = path ?? fs.cwd;
+        const entries = fs.list(target, { all });
         if (entries.length === 0) return { lines: [], action: null };
+        if (long) {
+          return {
+            lines: entries.map((e) =>
+              out(
+                `${FAKE_PERMS[e.type]}  ${e.type === "dir" ? e.name + "/" : e.name}`,
+                e.type === "dir" ? "line-dir" : ""
+              )
+            ),
+            action: null,
+          };
+        }
         const text = entries.map((e) => (e.type === "dir" ? e.name + "/" : e.name)).join("  ");
         return { lines: [out(text, "line-dir")], action: null };
       }
 
       case "ll": {
-        const target = args[0] ?? fs.cwd;
-        const entries = fs.list(target);
+        const { all, path } = parseLsFlags(args);
+        const target = path ?? fs.cwd;
+        const entries = fs.list(target, { all });
         if (entries.length === 0) return { lines: [], action: null };
         return {
           lines: entries.map((e) =>
@@ -445,9 +498,39 @@ function executeCommand(fs, cmd, args, history) {
       }
 
       case "rm": {
-        if (!args[0]) return { lines: [out("rm: missing operand", "line-error")], action: null };
-        fs.remove(args[0]);
-        return { lines: [], action: null };
+        const flags = args.filter((a) => a.startsWith("-") && a !== "-");
+        const paths = args.filter((a) => !a.startsWith("-") || a === "-");
+        const force = flags.includes("--force") || flags.some((f) => !f.startsWith("--") && /f/i.test(f));
+        if (paths.length === 0) return { lines: [out("rm: missing operand", "line-error")], action: null };
+
+        // `*` / `./*` / `dir/*` — the one glob shell-ism worth supporting
+        // since it's by far the most common actual use of `rm *`; no
+        // general globbing engine, just this one trailing-star pattern.
+        const errors = [];
+        const expanded = [];
+        for (const p of paths) {
+          if (p === "*" || p === "/*" || p.endsWith("/*")) {
+            const dirPart = p === "*" ? fs.cwd : p === "/*" ? "/" : fs.normalize(p.slice(0, -2));
+            try {
+              for (const entry of fs.list(dirPart)) {
+                expanded.push((dirPart === "/" ? "" : dirPart) + "/" + entry.name);
+              }
+            } catch (err) {
+              if (!force) errors.push(out(`rm: ${err.message}`, "line-error"));
+            }
+          } else {
+            expanded.push(p);
+          }
+        }
+
+        for (const p of expanded) {
+          try {
+            fs.remove(p);
+          } catch (err) {
+            if (!force) errors.push(out(`rm: ${err.message}`, "line-error"));
+          }
+        }
+        return { lines: errors, action: null };
       }
 
       case "clear":
@@ -481,6 +564,7 @@ function executeCommand(fs, cmd, args, history) {
 // Returns { lines: [{text, cls}], action }
 // action is null, { type: "clear" }, { type: "vim", path },
 // { type: "browse", path } (vim/vi with no file — see executeCommand),
+// { type: "top" } (live snapshot mode, see renderTopSnapshot + terminal.js),
 // { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
 // looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
 // error phase, straight to the picture).

@@ -343,6 +343,16 @@ textarea,
   color: var(--fg-dim);
 }
 
+.top-live {
+  margin: 0;
+  padding: 0;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .terminal-inputline {
   display: flex;
   align-items: center;

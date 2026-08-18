@@ -92,13 +92,17 @@ export class FileSystem {
 
   // --- operations ---
 
-  list(path = this.cwd) {
+  list(path = this.cwd, { all = false } = {}) {
     const node = this.resolveNode(path);
     if (!node) throw new FsError(`No such file or directory: ${path}`);
     if (node.type !== "dir") throw new FsError(`Not a directory: ${path}`);
-    return Object.entries(node.children)
+    const entries = Object.entries(node.children)
       .map(([name, n]) => ({ name, type: n.type }))
       .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
+    // `-a`: real `ls -a` lists `.`/`..` first, ahead of the sorted
+    // entries — there are no real dotfiles in this toy fs, so this is
+    // the whole visible effect of the flag.
+    return all ? [{ name: ".", type: "dir" }, { name: "..", type: "dir" }, ...entries] : entries;
   }
 
   chdir(path) {

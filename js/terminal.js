@@ -2,7 +2,7 @@
 // vim.js knows nothing about the DOM; this is the only module that
 // translates browser KeyboardEvents into the key vocabulary vim.js expects
 // and turns VimEngine.getState() into pixels.
-import { runCommand, COMMAND_NAMES } from "./shell.js";
+import { runCommand, COMMAND_NAMES, renderTopSnapshot } from "./shell.js";
 import { VimEngine, MODE } from "./vim.js";
 
 function pick(arr) {
@@ -58,6 +58,7 @@ export class Terminal {
     this._updatePrompt();
     this.els.shellInput.addEventListener("keydown", (e) => this._onShellKeydown(e));
     this.els.vimView.addEventListener("keydown", (e) => this._onVimKeydown(e));
+    this.els.terminalOutput.addEventListener("keydown", (e) => this._onTopKeydown(e));
     this.els.terminalPane.addEventListener("click", () => this._focusActive());
     this.els.vimHintClose?.addEventListener("click", () => this.hideInlineHint());
     this.els.shellHintClose?.addEventListener("click", () => this.hideShellHint());
@@ -98,7 +99,9 @@ export class Terminal {
   }
 
   _focusActive() {
-    if (this.els.vimView.classList.contains("hidden")) {
+    if (this._topInterval) {
+      this.els.terminalOutput.focus();
+    } else if (this.els.vimView.classList.contains("hidden")) {
       this.els.shellInput.focus();
     } else {
       this.els.vimView.focus();
@@ -158,6 +161,9 @@ export class Terminal {
       }
       if (result.action?.type === "browse") {
         this.enterBrowser(result.action.path);
+      }
+      if (result.action?.type === "top") {
+        this.enterTop();
       }
       if (result.action?.type === "meltdown") {
         this._startMeltdown();
@@ -299,6 +305,49 @@ export class Terminal {
     // 0.15s until impact + ~3.2s for that sound to finish + a beat to
     // actually look at the picture before reload.
     setTimeout(() => window.location.reload(), 4200);
+  }
+
+  // `top` — a live-updating view that takes over the terminal display
+  // (like a real full-screen curses app using the alternate screen
+  // buffer), refreshing on an interval with freshly-rolled fake stats.
+  // The previous scrollback is saved and restored verbatim on `q`, so
+  // quitting genuinely "clears top's output" rather than leaving it
+  // behind in the scrollback — same as a real terminal.
+  enterTop() {
+    if (this._topInterval) return;
+    this.hideInlineHint();
+    this.hideShellHint();
+    this._topSavedOutput = this.els.terminalOutput.innerHTML;
+    this.els.shellInput.disabled = true;
+    this._renderTop();
+    this._topInterval = setInterval(() => this._renderTop(), 1500);
+    this.els.terminalOutput.focus();
+  }
+
+  _renderTop() {
+    const pre = document.createElement("pre");
+    pre.className = "top-live";
+    pre.textContent = renderTopSnapshot().join("\n");
+    this.els.terminalOutput.innerHTML = "";
+    this.els.terminalOutput.appendChild(pre);
+  }
+
+  exitTop() {
+    clearInterval(this._topInterval);
+    this._topInterval = null;
+    this.els.terminalOutput.innerHTML = this._topSavedOutput ?? "";
+    this._topSavedOutput = null;
+    this.els.shellInput.disabled = false;
+    this.els.terminalOutput.scrollTop = this.els.terminalOutput.scrollHeight;
+    this._focusActive();
+  }
+
+  _onTopKeydown(e) {
+    if (!this._topInterval) return;
+    if (e.key === "q") {
+      e.preventDefault();
+      this.exitTop();
+    }
   }
 
   // ---------- vim ----------
