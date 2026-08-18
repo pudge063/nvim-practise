@@ -76,6 +76,7 @@ const modeTasksTab = $("mode-tasks-tab");
 const welcomePanel = $("welcome-panel");
 const tutorialPanel = $("tutorial-panel");
 const tasksPanel = $("tasks-panel");
+const taskDetailPane = $("task-detail-pane");
 
 function setMode(next) {
   mode = next;
@@ -84,6 +85,10 @@ function setMode(next) {
   welcomePanel.classList.toggle("hidden", mode !== null);
   tutorialPanel.classList.toggle("hidden", mode !== "tutorial");
   tasksPanel.classList.toggle("hidden", mode !== "tasks");
+  // The selected task's own text lives in its own block under the
+  // terminal (not inside the tasks-pane sidebar) — same visibility rule
+  // as tasksPanel itself, since it's only ever meaningful in that mode.
+  taskDetailPane?.classList.toggle("hidden", mode !== "tasks");
   // Switching away from whichever mode was mid-lesson/mid-task in vim
   // shouldn't leave its popup lingering over the other mode's UI.
   terminal.hideInlineHint();

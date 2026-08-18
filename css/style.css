@@ -162,9 +162,18 @@ textarea,
 .workspace {
   flex: 1;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: center;
+  gap: 22px;
   padding: 16px clamp(16px, 4vw, 48px) 28px;
+}
+
+@media (max-width: 880px) {
+  .workspace {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 
 /* ---------- terminal window ---------- */
@@ -600,12 +609,19 @@ textarea,
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-soft);
+  flex: none;
+  width: 360px;
+  max-width: 100%;
+  /* Glossy black lacquer, not the same translucent blue-glass as the
+     terminal/cheat-sheet — a diagonal near-black gradient with a soft
+     highlight wash across the top, like light catching a lacquered
+     panel, rather than a flat fill. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    linear-gradient(165deg, #131316 0%, #030304 60%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 44px 90px -24px rgba(0, 0, 0, 0.92), 0 22px 44px -22px rgba(125, 211, 252, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
   animation: fx-panel-in 0.5s ease-out 0.08s both;
   overflow: hidden;
 }
@@ -619,7 +635,19 @@ textarea,
   inset: 0 0 auto 0;
   height: 2px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
-  opacity: 0.7;
+  opacity: 0.8;
+}
+
+.tasks-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tasks-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-family: var(--mono);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 /* ---------- mode switch: tutorial vs. tasks ---------- */
@@ -848,9 +876,23 @@ textarea,
   font-size: 0.9rem;
 }
 
+/* Lives directly under the terminal (index.html), not inside the
+   tasks-pane sidebar — same glass-card family as the cheat sheet below
+   it, so picking a task reads as "the terminal just gained a caption",
+   not as a stray fragment of the sidebar's own look. */
+.task-detail-pane {
+  padding: 18px 20px 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  animation: fx-panel-in 0.4s ease-out both;
+}
+
 .task-detail {
-  padding: 16px 18px 18px;
-  border-top: 1px solid var(--border-soft);
+  min-width: 0;
 }
 
 .task-detail-empty {
