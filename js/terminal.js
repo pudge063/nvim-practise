@@ -31,6 +31,45 @@ const MODE_LABEL = {
   [MODE.COMMAND]: "COMMAND",
 };
 
+// ---------- shutdown / reboot / boot log lines ----------
+// See the "shutdown / reboot / power" section further down for how
+// each of these is actually played.
+
+const SHUTDOWN_LOG_LINES = [
+  "Stopping user manager for UID 1000...",
+  "Stopping Session c1 of user user...",
+  "[  OK  ] Stopped target Multi-User System.",
+  "[  OK  ] Stopped target Graphical Interface.",
+  "[  OK  ] Reached target Shutdown.",
+  "[  OK  ] Reached target Final Step.",
+  " Starting Power-Off...",
+  "[  OK  ] Finished Power-Off.",
+  "systemd-shutdown[1]: Powering off.",
+  "reboot: Power down",
+];
+
+const REBOOT_LOG_LINES = [
+  "Stopping user manager for UID 1000...",
+  "Stopping Session c1 of user user...",
+  "[  OK  ] Stopped target Multi-User System.",
+  "[  OK  ] Stopped target Graphical Interface.",
+  "[  OK  ] Reached target Shutdown.",
+  "[  OK  ] Reached target Reboot.",
+  " Rebooting...",
+  "systemd-shutdown[1]: Rebooting.",
+];
+
+const BOOT_LOG_LINES = [
+  "Booting vimlab...",
+  "[  OK  ] Started Journal Service.",
+  "[  OK  ] Mounted /home.",
+  "[  OK  ] Started Network Manager.",
+  "[  OK  ] Started D-Bus System Message Bus.",
+  "[  OK  ] Reached target Multi-User System.",
+  "",
+  "vimlab login: user (automatic login)",
+];
+
 export class Terminal {
   constructor({ fs, els, onVimKeystroke, onShellCommand, onVimExit }) {
     this.fs = fs;
@@ -54,8 +93,6 @@ export class Terminal {
     this._impactAudio = new Audio("img/pum-impacto.mp3");
     this._impactAudio.preload = "auto";
 
-    this._printLine("Welcome to vimlab. Type help for a list of commands.", "line-hint");
-    this._updatePrompt();
     this.els.shellInput.addEventListener("keydown", (e) => this._onShellKeydown(e));
     this.els.vimView.addEventListener("keydown", (e) => this._onVimKeydown(e));
     this.els.terminalOutput.addEventListener("keydown", (e) => this._onTopKeydown(e));
@@ -63,7 +100,33 @@ export class Terminal {
     this.els.vimHintClose?.addEventListener("click", () => this.hideInlineHint());
     this.els.shellHintClose?.addEventListener("click", () => this.hideShellHint());
     this.els.powerBtn?.addEventListener("click", () => this._powerOn());
-    this._focusActive();
+
+    // `reboot` sets this flag right before actually reloading the page
+    // (see _startReboot below) so the fresh load knows to play a boot
+    // log before the terminal becomes usable — a plain fresh visit never
+    // sets it, so first-time loading stays instant, unchanged.
+    let bootFlag = false;
+    try {
+      bootFlag = sessionStorage.getItem("vimlab-boot-log") === "1";
+      sessionStorage.removeItem("vimlab-boot-log");
+    } catch {
+      /* sessionStorage unavailable (private mode etc.) — just skip the
+         boot log this one time, nothing else depends on it */
+    }
+
+    if (bootFlag) {
+      this.els.shellInput.disabled = true;
+      this._runLogLines(BOOT_LOG_LINES, () => {
+        this.els.shellInput.disabled = false;
+        this._printLine("Welcome to vimlab. Type help for a list of commands.", "line-hint");
+        this._updatePrompt();
+        this._focusActive();
+      });
+    } else {
+      this._printLine("Welcome to vimlab. Type help for a list of commands.", "line-hint");
+      this._updatePrompt();
+      this._focusActive();
+    }
   }
 
   // Contextual popup shown inside the vim view itself. Two callers, two
@@ -175,7 +238,7 @@ export class Terminal {
         this._startMeltdown({ skipErrors: true });
       }
       if (result.action?.type === "reboot") {
-        setTimeout(() => window.location.reload(), 500);
+        this._startReboot();
       }
       if (result.action?.type === "shutdown") {
         this._startShutdown(result.action.delaySec);
@@ -356,7 +419,7 @@ export class Terminal {
     }
   }
 
-  // ---------- shutdown / power ----------
+  // ---------- shutdown / reboot / power ----------
   //
   // `shutdown` (see shell.js) schedules this after its own delay, then a
   // shutdown log plays and the terminal "powers off": a black overlay
@@ -365,6 +428,27 @@ export class Terminal {
   // button plays a boot log and reopens the shell. Unlike `reboot`, none
   // of this touches window.location — the in-memory filesystem survives
   // a shutdown/boot cycle exactly like a real disk would.
+  //
+  // `reboot` plays its own (shorter) log, then genuinely reloads the
+  // page — that's what actually resets everything (ADR-0002), which a
+  // shutdown/boot cycle deliberately does not. A sessionStorage flag set
+  // right before the reload tells the fresh page to play the boot log
+  // once more before the terminal becomes usable, so the whole thing
+  // reads as one continuous "went down, came back up" cycle rather than
+  // a log then a hard cut to an empty terminal.
+
+  _startReboot() {
+    this.els.shellInput.disabled = true;
+    this._runLogLines(REBOOT_LOG_LINES, () => {
+      try {
+        sessionStorage.setItem("vimlab-boot-log", "1");
+      } catch {
+        /* sessionStorage unavailable — the fresh load just won't play a
+           boot log this one time, reboot still otherwise works */
+      }
+      window.location.reload();
+    });
+  }
 
   _startShutdown(delaySec) {
     if (this._shutdownPending || this._poweredOff) return;
@@ -374,33 +458,11 @@ export class Terminal {
   }
 
   _runShutdownLog() {
-    const lines = [
-      "Stopping user manager for UID 1000...",
-      "Stopping Session c1 of user user...",
-      "[  OK  ] Stopped target Multi-User System.",
-      "[  OK  ] Stopped target Graphical Interface.",
-      "[  OK  ] Reached target Shutdown.",
-      "[  OK  ] Reached target Final Step.",
-      " Starting Power-Off...",
-      "[  OK  ] Finished Power-Off.",
-      "systemd-shutdown[1]: Powering off.",
-      "reboot: Power down",
-    ];
-    this._runLogLines(lines, () => this._powerOff());
+    this._runLogLines(SHUTDOWN_LOG_LINES, () => this._powerOff());
   }
 
   _runBootLog() {
-    const lines = [
-      "Booting vimlab...",
-      "[  OK  ] Started Journal Service.",
-      "[  OK  ] Mounted /home.",
-      "[  OK  ] Started Network Manager.",
-      "[  OK  ] Started D-Bus System Message Bus.",
-      "[  OK  ] Reached target Multi-User System.",
-      "",
-      "vimlab login: user (automatic login)",
-    ];
-    this._runLogLines(lines, () => {
+    this._runLogLines(BOOT_LOG_LINES, () => {
       this._poweredOff = false;
       this._shutdownPending = false;
       this.els.shellInput.disabled = false;
