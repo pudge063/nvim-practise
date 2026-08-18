@@ -36,11 +36,15 @@ export const COMMAND_NAMES = [
   "df",
   "man",
   "reboot",
+  "shutdown",
   "help",
   "env",
   "printenv",
   "export",
   "unset",
+  "hostnamectl",
+  "lscpu",
+  "ip",
 ];
 
 const HELP_TEXT = [
@@ -75,11 +79,15 @@ const HELP_TEXT = [
   "  df               filesystem usage",
   "  man <command>    a one-line manual entry",
   "  reboot           reload the page",
+  "  shutdown [-h now|N]  power off (default: in 5s; N: in N seconds)",
   "  help             this message",
   "  env              print all environment variables",
   "  printenv [NAME]  print all, or one variable's value",
   "  export NAME=val  set an environment variable",
   "  unset NAME       remove an environment variable",
+  "  hostnamectl [-l] system identity (host/OS/kernel); -l for more",
+  "  lscpu            CPU info",
+  "  ip a             list network interfaces",
   "",
   "Output redirection: `cmd > file` overwrites, `cmd >> file` appends.",
   "Tab completes commands and paths, like a real shell.",
@@ -123,11 +131,15 @@ const MAN_TEXT = {
   df: "df - filesystem usage summary",
   man: "man <command> - show a one-line manual entry",
   reboot: "reboot - reload the page",
+  shutdown: "shutdown [-h now|N] - power off; default in 5s, 'now' immediately, N in N seconds",
   help: "help - list all available commands",
   env: "env - print all environment variables as NAME=value",
   printenv: "printenv [NAME...] - print all variables, or just the named ones' values",
   export: "export NAME=value - set an environment variable ($NAME expands it afterwards)",
   unset: "unset NAME - remove an environment variable",
+  hostnamectl: "hostnamectl [-l] - system identity (hostname/OS/kernel); -l for more fields",
+  lscpu: "lscpu - CPU architecture info",
+  ip: "ip a - list network interfaces and their addresses",
 };
 
 function tokenize(line) {
@@ -245,6 +257,21 @@ function randRange(min, max, digits = 1) {
   return (Math.random() * (max - min) + min).toFixed(digits);
 }
 
+function randHexId(len) {
+  let s = "";
+  for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 16).toString(16);
+  return s;
+}
+
+// Rolled once per page load — machine-id and the network identity stay
+// put for the whole session, same as a real machine that isn't being
+// re-provisioned every command.
+const MACHINE_ID = randHexId(32);
+const BOOT_ID = randHexId(32);
+const NET_OCTET = Math.floor(Math.random() * 200) + 20;
+const FAKE_IP = `172.18.0.${NET_OCTET}`;
+const FAKE_MAC = "02:42:ac:12:00:" + Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+
 // Generates one fresh (fake) snapshot of top's display, as plain text
 // lines — called once when `top` starts and then repeatedly by
 // terminal.js's live-refresh interval, so every call must re-randomize
@@ -314,7 +341,10 @@ function executeCommand(fs, cmd, args, history) {
   // `--help`/`-h` on any known command short-circuits straight to its
   // manual entry, same as real coreutils — checked before the switch so
   // it works uniformly without every case needing to handle it itself.
-  if ((args.includes("--help") || args.includes("-h")) && MAN_TEXT[cmd]) {
+  // `shutdown` is the one exception: real shutdown's `-h` means "halt",
+  // not help, so it keeps only the long form.
+  const wantsHelp = args.includes("--help") || (args.includes("-h") && cmd !== "shutdown");
+  if (wantsHelp && MAN_TEXT[cmd]) {
     return { lines: [out(MAN_TEXT[cmd])], action: null };
   }
 
@@ -416,6 +446,85 @@ function executeCommand(fs, cmd, args, history) {
           ],
           action: null,
         };
+
+      case "hostnamectl": {
+        const long = args.includes("-l") || args.includes("--all") || args.includes("-a");
+        const lines = [
+          out("   Static hostname: vimlab"),
+          out("Transient hostname: vimlab"),
+          out("         Icon name: computer-container"),
+          out("           Chassis: container"),
+          out("        Machine ID: " + MACHINE_ID),
+          out("           Boot ID: " + BOOT_ID),
+          out("    Virtualization: docker"),
+          out("  Operating System: vimlab OS"),
+          out("            Kernel: Linux 6.8.0-generic"),
+          out("      Architecture: x86-64"),
+        ];
+        if (long) {
+          lines.push(
+            out("   Hardware Vendor: QEMU"),
+            out("    Hardware Model: Standard PC (Q35 + ICH9, 2009)"),
+            out("  Firmware Version: 1.16.3-2"),
+            out("Firmware Vendor: EDK II")
+          );
+        }
+        return { lines, action: null };
+      }
+
+      case "lscpu":
+        return {
+          lines: [
+            out("Architecture:            x86_64"),
+            out("CPU op-mode(s):          32-bit, 64-bit"),
+            out("Byte Order:              Little Endian"),
+            out("CPU(s):                  4"),
+            out("On-line CPU(s) list:     0-3"),
+            out("Vendor ID:               GenuineIntel"),
+            out("Model name:              Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"),
+            out("CPU family:              6"),
+            out("Thread(s) per core:      2"),
+            out("Core(s) per socket:      2"),
+            out("Socket(s):               1"),
+            out(`CPU MHz:                 ${randRange(1200, 2600, 0)}`),
+            out("L1d cache:               32K"),
+            out("L2 cache:                256K"),
+            out("L3 cache:                12288K"),
+          ],
+          action: null,
+        };
+
+      case "ip": {
+        if (args[0] === "a" || args[0] === "addr" || args[0] === "address") {
+          return {
+            lines: [
+              out("1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN"),
+              out("    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00"),
+              out("    inet 127.0.0.1/8 scope host lo"),
+              out("       valid_lft forever preferred_lft forever"),
+              out("2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP"),
+              out(`    link/ether ${FAKE_MAC} brd ff:ff:ff:ff:ff:ff`),
+              out(`    inet ${FAKE_IP}/24 brd 172.18.0.255 scope global eth0`),
+              out("       valid_lft forever preferred_lft forever"),
+            ],
+            action: null,
+          };
+        }
+        return { lines: [out(`Object "${args[0] ?? ""}" is unknown, try "ip help".`, "line-error")], action: null };
+      }
+
+      case "reboot":
+        return { lines: [], action: { type: "reboot" } };
+
+      case "shutdown": {
+        const now = args.includes("now");
+        const numArg = args.find((a) => /^\d+$/.test(a));
+        const delaySec = now ? 0 : numArg ? parseInt(numArg, 10) : 5;
+        return {
+          lines: [out(delaySec === 0 ? "Shutdown NOW!" : `Shutdown scheduled, ${delaySec}s from now.`)],
+          action: { type: "shutdown", delaySec },
+        };
+      }
 
       case "man": {
         if (!args[0]) return { lines: [out("What manual page do you want?", "line-error")], action: null };
@@ -643,9 +752,12 @@ function executeCommand(fs, cmd, args, history) {
 // action is null, { type: "clear" }, { type: "vim", path },
 // { type: "browse", path } (vim/vi with no file — see executeCommand),
 // { type: "top" } (live snapshot mode, see renderTopSnapshot + terminal.js),
-// { type: "reboot" }, { type: "meltdown" } (rm -rf / — errors first, see
-// looksLikeRmRfRoot above), or { type: "meltdown-image" } (sudo — no
-// error phase, straight to the picture).
+// { type: "reboot" } (immediate page reload), { type: "shutdown", delaySec }
+// (power-off theater, see terminal.js's shutdown/boot sequence — does NOT
+// reload the page, so unlike reboot the in-memory fs survives it),
+// { type: "meltdown" } (rm -rf / — errors first, see looksLikeRmRfRoot
+// above), or { type: "meltdown-image" } (sudo — no error phase, straight
+// to the picture).
 export function runCommand(fs, rawLine, { history } = {}) {
   // Expanded once, up front, so $NAME/${NAME} works uniformly in the
   // command name, any argument, or a redirect target — everything below

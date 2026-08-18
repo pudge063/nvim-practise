@@ -62,6 +62,7 @@ export class Terminal {
     this.els.terminalPane.addEventListener("click", () => this._focusActive());
     this.els.vimHintClose?.addEventListener("click", () => this.hideInlineHint());
     this.els.shellHintClose?.addEventListener("click", () => this.hideShellHint());
+    this.els.powerBtn?.addEventListener("click", () => this._powerOn());
     this._focusActive();
   }
 
@@ -99,7 +100,9 @@ export class Terminal {
   }
 
   _focusActive() {
-    if (this._topInterval) {
+    if (this._poweredOff) {
+      return; // nothing to focus — the power button is the only live control
+    } else if (this._topInterval) {
       this.els.terminalOutput.focus();
     } else if (this.els.vimView.classList.contains("hidden")) {
       this.els.shellInput.focus();
@@ -173,6 +176,9 @@ export class Terminal {
       }
       if (result.action?.type === "reboot") {
         setTimeout(() => window.location.reload(), 500);
+      }
+      if (result.action?.type === "shutdown") {
+        this._startShutdown(result.action.delaySec);
       }
       // Fired last, once any of the branches above (e.g. enterVim) have
       // already run — a listener reacting to "vim was opened" needs
@@ -348,6 +354,89 @@ export class Terminal {
       e.preventDefault();
       this.exitTop();
     }
+  }
+
+  // ---------- shutdown / power ----------
+  //
+  // `shutdown` (see shell.js) schedules this after its own delay, then a
+  // shutdown log plays and the terminal "powers off": a black overlay
+  // with just a power button, scoped to the terminal window itself, not
+  // the whole page (unlike the rm -rf/sudo meltdown). Pressing the
+  // button plays a boot log and reopens the shell. Unlike `reboot`, none
+  // of this touches window.location — the in-memory filesystem survives
+  // a shutdown/boot cycle exactly like a real disk would.
+
+  _startShutdown(delaySec) {
+    if (this._shutdownPending || this._poweredOff) return;
+    this._shutdownPending = true;
+    this.els.shellInput.disabled = true;
+    setTimeout(() => this._runShutdownLog(), Math.max(delaySec, 0) * 1000);
+  }
+
+  _runShutdownLog() {
+    const lines = [
+      "Stopping user manager for UID 1000...",
+      "Stopping Session c1 of user user...",
+      "[  OK  ] Stopped target Multi-User System.",
+      "[  OK  ] Stopped target Graphical Interface.",
+      "[  OK  ] Reached target Shutdown.",
+      "[  OK  ] Reached target Final Step.",
+      " Starting Power-Off...",
+      "[  OK  ] Finished Power-Off.",
+      "systemd-shutdown[1]: Powering off.",
+      "reboot: Power down",
+    ];
+    this._runLogLines(lines, () => this._powerOff());
+  }
+
+  _runBootLog() {
+    const lines = [
+      "Booting vimlab...",
+      "[  OK  ] Started Journal Service.",
+      "[  OK  ] Mounted /home.",
+      "[  OK  ] Started Network Manager.",
+      "[  OK  ] Started D-Bus System Message Bus.",
+      "[  OK  ] Reached target Multi-User System.",
+      "",
+      "vimlab login: user (automatic login)",
+    ];
+    this._runLogLines(lines, () => {
+      this._poweredOff = false;
+      this._shutdownPending = false;
+      this.els.shellInput.disabled = false;
+      this._updatePrompt();
+      this._focusActive();
+    });
+  }
+
+  // Shared by the shutdown and boot logs — prints `lines` one at a time
+  // on an interval, then calls `onDone`; the only difference between
+  // the two callers is the line list and what happens afterwards.
+  _runLogLines(lines, onDone) {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i >= lines.length) {
+        clearInterval(interval);
+        onDone();
+        return;
+      }
+      this._printLine(lines[i], "line-hint");
+      i++;
+    }, 220);
+  }
+
+  _powerOff() {
+    this._poweredOff = true;
+    this.els.terminalPane.classList.add("powered-off");
+    this.els.powerOverlay?.classList.remove("hidden");
+  }
+
+  _powerOn() {
+    if (!this._poweredOff) return;
+    this.els.powerOverlay?.classList.add("hidden");
+    this.els.terminalPane.classList.remove("powered-off");
+    this.els.terminalOutput.innerHTML = "";
+    this._runBootLog();
   }
 
   // ---------- vim ----------

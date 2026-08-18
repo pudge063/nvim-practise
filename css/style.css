@@ -1319,3 +1319,63 @@ textarea,
     opacity: 1;
   }
 }
+
+/* ---------- shutdown / power ---------- */
+.terminal-pane.powered-off::before {
+  display: none;
+}
+
+.power-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border-radius: inherit;
+  animation: fx-power-fade 0.4s ease-out both;
+}
+
+.power-overlay.hidden {
+  display: none;
+}
+
+@keyframes fx-power-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.power-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid var(--fg-faint);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fg-dim);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  animation: fx-power-pulse 2.2s ease-in-out infinite;
+}
+
+.power-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 30px rgba(125, 211, 252, 0.45);
+}
+
+@keyframes fx-power-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(125, 211, 252, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(125, 211, 252, 0.25);
+  }
+}

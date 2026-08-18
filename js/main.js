@@ -35,6 +35,8 @@ const els = {
   progressStars: $("progress-stars"),
   freeplayBtn: $("freeplay-btn"),
   meltdownOverlay: $("meltdown-overlay"),
+  powerOverlay: $("power-overlay"),
+  powerBtn: $("power-btn"),
   tutorialSteps: $("tutorial-steps"),
   tutorialStatus: $("tutorial-status"),
 };
